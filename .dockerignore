@@ -1,0 +1,41 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+node_modules
+vendor
+
+# Compiled assets (built inside Docker)
+public/build
+public/hot
+
+# Laravel caches (regenerated in container)
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+bootstrap/cache
+
+# Logs
+storage/logs
+
+# Test / dev files
+tests
+phpunit.xml
+pint.json
+eslint.config.js
+prettier.config.js
+
+# Docker files (no need to copy into image)
+docker-compose.yml
+Dockerfile
+
+# IDE
+.idea
+.vscode
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
