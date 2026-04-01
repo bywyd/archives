@@ -508,6 +508,7 @@ The project is actively developed. Current priorities:
 - [ ] SEO layer improvements
 - [ ] Multi language support for database and UI
 - [ ] Improving dockerizing
+- [ ] Automated Tests
 
 Feel free to contribute outside of these roadmap scopes.
 
