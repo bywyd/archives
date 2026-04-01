@@ -73,10 +73,12 @@ function runForceSimulation(
             }
         }
 
-        // Spring attraction along edges
+        // Spring attraction along edges – O(1) Map lookup (guards against string/number ID mismatch)
+        const simById = new Map<number, typeof sim[0]>();
+        sim.forEach((n) => simById.set(n.id, n));
         for (const edge of edges) {
-            const s = sim.find((n) => n.id === edge.from);
-            const t = sim.find((n) => n.id === edge.to);
+            const s = simById.get(edge.from);
+            const t = simById.get(edge.to);
             if (!s || !t) continue;
             const dx = t.x - s.x;
             const dy = t.y - s.y;
@@ -136,17 +138,21 @@ export function SearchConnectionsWindow({
         const radius = Math.max(160, total * 28);
         const angleStep = (2 * Math.PI) / Math.max(total, 1);
 
+        // Coerce IDs to number – PHP/Laravel JSON may return integers as strings at runtime
         const relationCount = new Map<number, number>();
         for (const edge of propEdges) {
-            relationCount.set(edge.from, (relationCount.get(edge.from) ?? 0) + 1);
-            relationCount.set(edge.to, (relationCount.get(edge.to) ?? 0) + 1);
+            const f = Number(edge.from);
+            const t = Number(edge.to);
+            relationCount.set(f, (relationCount.get(f) ?? 0) + 1);
+            relationCount.set(t, (relationCount.get(t) ?? 0) + 1);
         }
 
         const layoutNodes: LayoutNode[] = propNodes.map((n, i) => {
+            const nid = Number(n.id);
             const r = n.is_primary ? radius * 0.55 : radius;
             const angle = angleStep * i - Math.PI / 2;
             return {
-                id: n.id,
+                id: nid,
                 slug: n.slug,
                 name: n.name,
                 typeName: n.entity_type?.name ?? null,
@@ -154,7 +160,7 @@ export function SearchConnectionsWindow({
                 icon: n.entity_type?.icon ?? null,
                 imageUrl: n.profile_image_url ?? null,
                 isPrimary: n.is_primary,
-                relationCount: relationCount.get(n.id) ?? 0,
+                relationCount: relationCount.get(nid) ?? 0,
                 x: CX + Math.cos(angle) * r,
                 y: CY + Math.sin(angle) * r,
                 vx: 0,
@@ -163,9 +169,9 @@ export function SearchConnectionsWindow({
         });
 
         const layoutEdges: LayoutEdge[] = propEdges.map((e) => ({
-            id: e.id,
-            from: e.from,
-            to: e.to,
+            id: Number(e.id),
+            from: Number(e.from),
+            to: Number(e.to),
             label: e.label,
             status: e.status,
             description: e.description,
