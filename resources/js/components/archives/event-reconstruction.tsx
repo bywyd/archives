@@ -1,5 +1,27 @@
-import { AlertCircle, ChevronRight, Clock, Eye, EyeOff, Loader2, MapPin, Sparkles, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+    AlertCircle,
+    Bug,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    Crosshair,
+    DoorOpen,
+    ExternalLink,
+    Eye,
+    EyeOff,
+    FileText,
+    Flame,
+    Link2,
+    Loader2,
+    MapPin,
+    Scan,
+    ShieldAlert,
+    Sparkles,
+    Sword,
+    Users,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { EntityQuickPreview } from '@/components/archives/entity-quick-preview';
 import { TypeIcon } from '@/components/archives/type-icon';
 import * as api from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -12,7 +34,7 @@ type Props = {
     initialEventSlug?: string;
 };
 
-//  Helpers to extract relations / attributes from an Entity 
+/*  helpers  */
 
 function getAttr(entity: ApiEntity, slug: string): string | null {
     const attr = entity.attributes?.find((a: any) => a.definition?.slug === slug);
@@ -35,12 +57,45 @@ function getLocation(entity: ApiEntity): ApiEntitySummary | null {
     return rel?.to_entity ?? null;
 }
 
+/*  colour / icon maps  */
+
 const SEVERITY_COLORS: Record<string, string> = {
     low: 'text-[var(--arc-text-muted)] bg-[var(--arc-text-muted)]/10',
     medium: 'text-[var(--arc-warning)] bg-[var(--arc-warning)]/10',
+    moderate: 'text-[var(--arc-warning)] bg-[var(--arc-warning)]/10',
     high: 'text-orange-400 bg-orange-400/10',
+    severe: 'text-orange-500 bg-orange-500/10',
     critical: 'text-[var(--arc-danger)] bg-[var(--arc-danger)]/10',
     'extinction-level': 'text-[var(--arc-danger)] bg-[var(--arc-danger)]/20 animate-pulse',
+};
+
+const THREAT_BORDER: Record<string, string> = {
+    none: 'border-l-[var(--arc-border)]',
+    low: 'border-l-[var(--arc-text-muted)]',
+    moderate: 'border-l-[var(--arc-warning)]',
+    high: 'border-l-orange-400',
+    severe: 'border-l-orange-500',
+    critical: 'border-l-[var(--arc-danger)]',
+};
+
+const EVENT_TYPE_ICON: Record<string, React.ReactNode> = {
+    combat: <Sword className="size-2.5" />,
+    discovery: <Scan className="size-2.5" />,
+    escape: <DoorOpen className="size-2.5" />,
+    infection: <Bug className="size-2.5" />,
+    betrayal: <ShieldAlert className="size-2.5" />,
+    investigation: <Crosshair className="size-2.5" />,
+    catastrophe: <Flame className="size-2.5" />,
+};
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+    combat: 'text-[var(--arc-danger)] bg-[var(--arc-danger)]/10',
+    discovery: 'text-cyan-400 bg-cyan-400/10',
+    escape: 'text-emerald-400 bg-emerald-400/10',
+    infection: 'text-violet-400 bg-violet-400/10',
+    betrayal: 'text-[var(--arc-warning)] bg-[var(--arc-warning)]/10',
+    investigation: 'text-[var(--arc-accent)] bg-[var(--arc-accent)]/10',
+    catastrophe: 'text-orange-400 bg-orange-400/10',
 };
 
 const PHASE_COLORS = [
@@ -66,10 +121,13 @@ const CLASS_COLORS: Record<string, string> = {
 
 const RELIABILITY_COLORS: Record<string, string> = {
     confirmed: 'text-[var(--arc-success)]',
+    probable: 'text-cyan-400',
     suspected: 'text-[var(--arc-warning)]',
     unverified: 'text-[var(--arc-text-muted)]',
     disinformation: 'text-[var(--arc-danger)]',
 };
+
+/*  main component  */
 
 export function EventReconstruction({ universeId, incidentSlug, initialEventSlug }: Props) {
     const [data, setData] = useState<ApiReconstructionResponse | null>(null);
@@ -111,6 +169,15 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
         });
     };
 
+    const openEventDossier = (event: ApiEntity) => {
+        openWindow({
+            type: 'entity-dossier',
+            title: `${event.name} — DOSSIER`,
+            icon: 'EV',
+            props: { key: `entity-${universeId}-${event.slug}`, universeId, entitySlug: event.slug },
+        });
+    };
+
     if (loading) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-3">
@@ -140,6 +207,7 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
 
     const allEvents = data.phases.flatMap((p) => p.events);
     const selectedEvent = allEvents.find((e) => e.slug === selectedSlug) ?? null;
+    const selectedIdx = allEvents.findIndex((e) => e.slug === selectedSlug);
 
     const togglePhase = (phaseName: string) => {
         setCollapsedPhases((prev) => {
@@ -148,6 +216,11 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
             else next.add(phaseName);
             return next;
         });
+    };
+
+    const goTo = (idx: number) => {
+        const clamped = Math.max(0, Math.min(idx, allEvents.length - 1));
+        setSelectedSlug(allEvents[clamped].slug);
     };
 
     return (
@@ -217,13 +290,17 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
                                         {phase.events.map((event) => {
                                             const isSelected = event.slug === selectedSlug;
                                             const dateVal = getAttr(event, 'date');
+                                            const timeVal = getAttr(event, 'time');
                                             const sigVal = getAttr(event, 'significance');
+                                            const threatVal = getAttr(event, 'threat-level');
+                                            const eventTypeVal = getAttr(event, 'event-type');
                                             const participants = getParticipants(event);
                                             return (
                                                 <button
                                                     key={event.id}
                                                     className={cn(
-                                                        'relative flex w-full gap-3 px-3 py-2.5 text-left transition-colors',
+                                                        'relative flex w-full gap-3 px-3 py-2.5 text-left transition-colors border-l-2',
+                                                        threatVal ? (THREAT_BORDER[threatVal] ?? 'border-l-[var(--arc-border)]') : 'border-l-transparent',
                                                         isSelected
                                                             ? 'bg-[var(--arc-accent)]/8 border-r-2 border-r-[var(--arc-accent)]'
                                                             : 'hover:bg-[var(--arc-surface-hover)]',
@@ -232,14 +309,20 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
                                                 >
                                                     {/* Node */}
                                                     <div className="relative z-10 flex size-5 shrink-0 items-center justify-center">
-                                                        <div
-                                                            className={cn(
-                                                                'size-2.5 rounded-full border-2',
-                                                                isSelected
-                                                                    ? 'border-[var(--arc-accent)] bg-[var(--arc-accent)]'
-                                                                    : 'border-[var(--arc-border-strong)] bg-[var(--arc-surface)]',
-                                                            )}
-                                                        />
+                                                        {eventTypeVal && EVENT_TYPE_ICON[eventTypeVal] ? (
+                                                            <div className={cn('flex items-center justify-center rounded-full size-5', isSelected ? EVENT_TYPE_COLORS[eventTypeVal] : 'text-[var(--arc-text-muted)]')}>
+                                                                {EVENT_TYPE_ICON[eventTypeVal]}
+                                                            </div>
+                                                        ) : (
+                                                            <div
+                                                                className={cn(
+                                                                    'size-2.5 rounded-full border-2',
+                                                                    isSelected
+                                                                        ? 'border-[var(--arc-accent)] bg-[var(--arc-accent)]'
+                                                                        : 'border-[var(--arc-border-strong)] bg-[var(--arc-surface)]',
+                                                                )}
+                                                            />
+                                                        )}
                                                     </div>
 
                                                     <div className="flex-1 min-w-0">
@@ -247,6 +330,11 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
                                                             {dateVal && (
                                                                 <span className="arc-mono text-[9px] font-bold text-[var(--arc-accent)]">
                                                                     {dateVal}
+                                                                </span>
+                                                            )}
+                                                            {timeVal && timeVal !== 'unknown' && (
+                                                                <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
+                                                                    {timeVal}
                                                                 </span>
                                                             )}
                                                             {sigVal && (
@@ -258,12 +346,19 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
                                                         <div className="mt-0.5 text-xs font-medium text-[var(--arc-text)] truncate">
                                                             {event.name}
                                                         </div>
-                                                        {participants.length > 0 && (
-                                                            <div className="mt-0.5 flex items-center gap-1 text-[9px] text-[var(--arc-text-muted)]">
-                                                                <Users className="size-2.5" />
-                                                                <span>{participants.length}</span>
-                                                            </div>
-                                                        )}
+                                                        <div className="mt-0.5 flex items-center gap-2">
+                                                            {eventTypeVal && (
+                                                                <span className={cn('arc-mono flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold uppercase', EVENT_TYPE_COLORS[eventTypeVal] ?? 'text-[var(--arc-text-muted)]')}>
+                                                                    {eventTypeVal}
+                                                                </span>
+                                                            )}
+                                                            {participants.length > 0 && (
+                                                                <span className="flex items-center gap-0.5 text-[9px] text-[var(--arc-text-muted)]">
+                                                                    <Users className="size-2.5" />
+                                                                    {participants.length}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </button>
                                             );
@@ -278,7 +373,15 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
                 {/* RIGHT: Event detail panel */}
                 <div className="flex-1 overflow-y-auto bg-[var(--arc-bg)]">
                     {selectedEvent ? (
-                        <EventDetailPanel event={selectedEvent} universeId={universeId} onOpenEntity={openEntity} />
+                        <EventDetailPanel
+                            event={selectedEvent}
+                            allEvents={allEvents}
+                            currentIdx={selectedIdx}
+                            universeId={universeId}
+                            onOpenEntity={openEntity}
+                            onOpenDossier={openEventDossier}
+                            onNavigate={goTo}
+                        />
                     ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2">
                             <Sparkles className="size-6 text-[var(--arc-text-muted)]/40" />
@@ -303,78 +406,156 @@ export function EventReconstruction({ universeId, incidentSlug, initialEventSlug
     );
 }
 
-/*  Event Detail Panel (Entity-driven)  */
+/*  Event Detail Panel  */
 
 function EventDetailPanel({
     event,
+    allEvents,
+    currentIdx,
     universeId,
     onOpenEntity,
+    onOpenDossier,
+    onNavigate,
 }: {
     event: ApiEntity;
+    allEvents: ApiEntity[];
+    currentIdx: number;
     universeId: number;
     onOpenEntity: (entity: ApiEntitySummary) => void;
+    onOpenDossier: (event: ApiEntity) => void;
+    onNavigate: (idx: number) => void;
 }) {
     const dateVal = getAttr(event, 'date');
+    const yearVal = getAttr(event, 'year');
+    const timeVal = getAttr(event, 'time');
     const durationVal = getAttr(event, 'duration');
     const phaseVal = getAttr(event, 'phase');
     const outcomeVal = getAttr(event, 'outcome');
     const casualtiesVal = getAttr(event, 'casualties');
     const significanceVal = getAttr(event, 'significance');
+    const threatVal = getAttr(event, 'threat-level');
+    const eventTypeVal = getAttr(event, 'event-type');
     const participants = getParticipants(event);
     const location = getLocation(event);
     const narrativeSection = (event.sections ?? []).find((s: any) => s.slug === 'narrative' || s.slug === 'narrative-reconstruction');
     const narrativeContent = narrativeSection?.content ?? event.content;
 
+    const participantIds = useMemo(() => new Set(participants.map((p) => p.entity?.id).filter(Boolean)), [participants]);
+    const crossRefs = useMemo(() => {
+        if (participantIds.size === 0) return [];
+        return allEvents
+            .filter((e) => e.id !== event.id)
+            .map((e) => {
+                const eParts = getParticipants(e);
+                const shared = eParts.filter((p) => p.entity?.id && participantIds.has(p.entity.id));
+                return { event: e, sharedCount: shared.length };
+            })
+            .filter((x) => x.sharedCount > 0)
+            .sort((a, b) => b.sharedCount - a.sharedCount);
+    }, [allEvents, event.id, participantIds]);
+
+    const isCritical = significanceVal === 'critical' || significanceVal === 'extinction-level';
+
+    const dataRows: Array<{ label: string; value: string }> = [];
+    if (yearVal) dataRows.push({ label: 'YEAR', value: yearVal });
+    if (dateVal) dataRows.push({ label: 'DATE', value: dateVal });
+    if (timeVal) dataRows.push({ label: 'TIME', value: timeVal === 'unknown' ? 'UNKNOWN' : timeVal });
+    if (durationVal) dataRows.push({ label: 'DURATION', value: durationVal });
+    if (phaseVal) dataRows.push({ label: 'PHASE', value: phaseVal.toUpperCase() });
+    if (outcomeVal) dataRows.push({ label: 'OUTCOME', value: outcomeVal });
+
     return (
-        <div className="p-4 space-y-4">
-            {/* Event header */}
+        <div className="relative p-4 space-y-4 arc-animate-window-open" key={event.id}>
+            {/* CLASSIFIED stamp for critical events */}
+            {/* {isCritical && (
+                <div className="pointer-events-none absolute right-6 top-6 z-10 rotate-[-12deg] select-none">
+                    <div className="arc-mono rounded border-2 border-[var(--arc-danger)]/40 px-3 py-1 text-[11px] font-black tracking-[0.3em] text-[var(--arc-danger)]/25">
+                        CLASSIFIED
+                    </div>
+                </div>
+            )} */}
+
+            {/* Event header block */}
             <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    {dateVal && (
-                        <span className="arc-mono rounded bg-[var(--arc-accent)]/8 px-1.5 py-0.5 text-[10px] font-bold text-[var(--arc-accent)]">
-                            {dateVal}
-                        </span>
+                {/* Top row: type badge + open dossier */}
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {eventTypeVal && (
+                            <span className={cn('arc-mono flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', EVENT_TYPE_COLORS[eventTypeVal] ?? 'text-[var(--arc-text-muted)] bg-[var(--arc-text-muted)]/10')}>
+                                {EVENT_TYPE_ICON[eventTypeVal]}
+                                {eventTypeVal}
+                            </span>
+                        )}
+                        {threatVal && (
+                            <span className={cn('arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[threatVal] ?? SEVERITY_COLORS.moderate)}>
+                                THREAT: {threatVal}
+                            </span>
+                        )}
+                        {significanceVal && (
+                            <span className={cn('arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[significanceVal] ?? SEVERITY_COLORS.medium)}>
+                                {significanceVal}
+                            </span>
+                        )}
+                    </div>
+                    
+                    {isCritical && (
+                        <div className="arc-mono border-2 border-[var(--arc-danger)] px-3 py-1 text-[11px] font-black tracking-[0.3em] text-[var(--arc-danger)]">
+                            CLASSIFIED
+                        </div>
                     )}
-                    {significanceVal && (
-                        <span className={cn('arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[significanceVal] ?? SEVERITY_COLORS.medium)}>
-                            {significanceVal}
-                        </span>
-                    )}
-                    {durationVal && (
-                        <span className="arc-mono rounded bg-[var(--arc-surface-alt)] px-1.5 py-0.5 text-[9px] text-[var(--arc-text-muted)]">
-                            <Clock className="mr-0.5 inline size-2.5" />
-                            {durationVal}
-                        </span>
-                    )}
-                    {phaseVal && (
-                        <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
-                            PHASE: {phaseVal.toUpperCase()}
-                        </span>
-                    )}
-                    {outcomeVal && (
-                        <span className="arc-mono rounded bg-[var(--arc-text-muted)]/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[var(--arc-text-muted)]">
-                            {outcomeVal}
-                        </span>
-                    )}
+                    <button
+                        className="flex items-center gap-1 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2 py-1 text-[9px] font-bold transition-colors hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]"
+                        onClick={() => onOpenDossier(event)}
+                    >
+                        <ExternalLink className="size-2.5" />
+                        <span className="arc-mono tracking-[0.1em]">OPEN DOSSIER</span>
+                    </button>
                 </div>
 
-                <h2 className="mt-2 text-lg font-bold text-[var(--arc-text)]">
+                <h2 className="text-lg font-bold text-[var(--arc-text)]">
                     {event.name}
                 </h2>
 
                 {event.short_description && (
-                    <p className="mt-1 text-sm text-[var(--arc-text-muted)]">
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--arc-text-muted)]">
                         {event.short_description}
                     </p>
                 )}
 
-                {casualtiesVal && (
-                    <div className="mt-1 arc-mono text-[9px] text-[var(--arc-danger)]">
-                        CASUALTIES: {casualtiesVal}
+                {/* Structured event data table */}
+                {dataRows.length > 0 && (
+                    <div className="mt-3 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] overflow-hidden">
+                        <div className="flex items-center gap-1.5 border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2.5 py-1.5">
+                            <FileText className="size-2.5 text-[var(--arc-accent)]" />
+                            <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-accent)]">
+                                EVENT DATA
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-px bg-[var(--arc-border)]">
+                            {dataRows.map((row) => (
+                                <div key={row.label} className="flex items-baseline gap-2 bg-[var(--arc-surface)] px-2.5 py-1.5">
+                                    <span className="arc-mono text-[9px] font-bold text-[var(--arc-text-muted)] shrink-0 w-16">
+                                        {row.label}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-[var(--arc-text)]">
+                                        {row.value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
-                {/* Narrative block — from sections or content */}
+                {casualtiesVal && (
+                    <div className="mt-2 flex items-center gap-1.5 rounded border border-[var(--arc-danger)]/20 bg-[var(--arc-danger)]/5 px-2.5 py-1.5">
+                        <AlertCircle className="size-3 shrink-0 text-[var(--arc-danger)]" />
+                        <span className="arc-mono text-[9px] font-bold text-[var(--arc-danger)]">
+                            CASUALTIES: {casualtiesVal}
+                        </span>
+                    </div>
+                )}
+
+                {/* Narrative block */}
                 {narrativeContent && (
                     <div className="mt-3 rounded border border-[var(--arc-accent)]/20 bg-[var(--arc-accent)]/5 p-3">
                         <div className="flex items-center gap-1.5 mb-1.5">
@@ -400,20 +581,22 @@ function EventDetailPanel({
                             LOCATION
                         </span>
                     </div>
-                    <button
-                        className="flex items-center gap-2 text-left transition-colors hover:text-[var(--arc-accent)]"
-                        onClick={() => onOpenEntity(location)}
-                    >
-                        <TypeIcon entityType={location.entity_type} size="sm" />
-                        <span className="text-sm font-medium text-[var(--arc-text)]">
-                            {location.name}
-                        </span>
-                        <span className="arc-mono text-[9px] text-[var(--arc-accent)]">→ VIEW</span>
-                    </button>
+                    <EntityQuickPreview universeId={universeId} entitySlug={location.slug} entityName={location.name} side="right">
+                        <button
+                            className="flex items-center gap-2 text-left transition-colors hover:text-[var(--arc-accent)]"
+                            onClick={() => onOpenEntity(location)}
+                        >
+                            <TypeIcon entityType={location.entity_type} size="sm" />
+                            <span className="text-sm font-medium text-[var(--arc-text)]">
+                                {location.name}
+                            </span>
+                            <span className="arc-mono text-[9px] text-[var(--arc-accent)]">→ DOSSIER</span>
+                        </button>
+                    </EntityQuickPreview>
                 </div>
             )}
 
-            {/* Participants (from incoming `participated-in` relations) */}
+            {/* Participants */}
             {participants.length > 0 && (
                 <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
                     <div className="flex items-center gap-1.5 mb-2">
@@ -432,16 +615,21 @@ function EventDetailPanel({
                                 key={p.entity?.id ?? idx}
                                 className="flex items-start gap-2 rounded bg-[var(--arc-surface-alt)] px-2.5 py-2"
                             >
-                                <button
-                                    className="flex items-center gap-1.5 text-left transition-colors hover:text-[var(--arc-accent)]"
-                                    onClick={() => p.entity && onOpenEntity(p.entity)}
-                                    disabled={!p.entity}
-                                >
-                                    {p.entity && <TypeIcon entityType={p.entity.entity_type} size="sm" />}
-                                    <span className="text-xs font-medium text-[var(--arc-text)]">
-                                        {p.entity?.name ?? 'Unknown'}
-                                    </span>
-                                </button>
+                                {p.entity ? (
+                                    <EntityQuickPreview universeId={universeId} entitySlug={p.entity.slug} entityName={p.entity.name} side="right">
+                                        <button
+                                            className="flex items-center gap-1.5 text-left transition-colors hover:text-[var(--arc-accent)]"
+                                            onClick={() => p.entity && onOpenEntity(p.entity)}
+                                        >
+                                            <TypeIcon entityType={p.entity.entity_type} size="sm" />
+                                            <span className="text-xs font-medium text-[var(--arc-text)]">
+                                                {p.entity.name}
+                                            </span>
+                                        </button>
+                                    </EntityQuickPreview>
+                                ) : (
+                                    <span className="text-xs font-medium text-[var(--arc-text-muted)]">Unknown</span>
+                                )}
                                 <div className="flex flex-1 flex-wrap items-center gap-2 ml-auto">
                                     {p.description && (
                                         <span className="arc-mono rounded bg-[var(--arc-accent)]/8 px-1.5 py-0.5 text-[9px] font-bold text-[var(--arc-accent)]">
@@ -457,7 +645,9 @@ function EventDetailPanel({
                                                     ? 'bg-[var(--arc-success)]/10 text-[var(--arc-success)]'
                                                     : p.status.toLowerCase().includes('mutated')
                                                         ? 'bg-violet-500/10 text-violet-400'
-                                                        : 'bg-[var(--arc-text-muted)]/10 text-[var(--arc-text-muted)]',
+                                                        : p.status.toLowerCase().includes('destroyed')
+                                                            ? 'bg-[var(--arc-danger)]/10 text-[var(--arc-danger)]'
+                                                            : 'bg-[var(--arc-text-muted)]/10 text-[var(--arc-text-muted)]',
                                         )}>
                                             {p.status}
                                         </span>
@@ -478,11 +668,112 @@ function EventDetailPanel({
             {event.intelligence_records && event.intelligence_records.length > 0 && (
                 <IntelligenceSection records={event.intelligence_records} universeId={universeId} onOpenEntity={onOpenEntity} />
             )}
+
+            {/* Cross-References */}
+            {crossRefs.length > 0 && (
+                <CrossReferencesSection crossRefs={crossRefs} allEvents={allEvents} onNavigate={onNavigate} />
+            )}
+
+            {/* Sequential Navigation */}
+            <div className="flex items-center justify-between border-t border-[var(--arc-border)] pt-3">
+                <button
+                    className={cn(
+                        'flex items-center gap-1 rounded border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
+                        currentIdx > 0 ? 'hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]' : 'opacity-30 cursor-not-allowed',
+                    )}
+                    onClick={() => onNavigate(currentIdx - 1)}
+                    disabled={currentIdx <= 0}
+                >
+                    <ChevronLeft className="size-3" />
+                    <span className="arc-mono tracking-[0.1em]">PREV EVENT</span>
+                </button>
+                <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
+                    {currentIdx + 1} / {allEvents.length}
+                </span>
+                <button
+                    className={cn(
+                        'flex items-center gap-1 rounded border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
+                        currentIdx < allEvents.length - 1 ? 'hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]' : 'opacity-30 cursor-not-allowed',
+                    )}
+                    onClick={() => onNavigate(currentIdx + 1)}
+                    disabled={currentIdx >= allEvents.length - 1}
+                >
+                    <span className="arc-mono tracking-[0.1em]">NEXT EVENT</span>
+                    <ChevronRight className="size-3" />
+                </button>
+            </div>
         </div>
     );
 }
 
-/*  Intelligence Section within Event Detail  */
+/*  Cross-References Section  */
+
+function CrossReferencesSection({
+    crossRefs,
+    allEvents,
+    onNavigate,
+}: {
+    crossRefs: Array<{ event: ApiEntity; sharedCount: number }>;
+    allEvents: ApiEntity[];
+    onNavigate: (idx: number) => void;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
+            <button
+                className="flex w-full items-center gap-1.5 text-left"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <ChevronRight className={cn('size-2.5 text-[var(--arc-text-muted)] transition-transform', isOpen && 'rotate-90')} />
+                <Link2 className="size-3 text-cyan-400" />
+                <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
+                    CROSS-REFERENCES
+                </span>
+                <div className="h-px flex-1 bg-[var(--arc-border)]" />
+                <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
+                    {crossRefs.length} LINKED EVENT{crossRefs.length !== 1 ? 'S' : ''}
+                </span>
+            </button>
+
+            {isOpen && (
+                <div className="mt-2 space-y-1">
+                    {crossRefs.map((ref) => {
+                        const refIdx = allEvents.findIndex((e) => e.id === ref.event.id);
+                        const refDate = getAttr(ref.event, 'date');
+                        const refType = getAttr(ref.event, 'event-type');
+                        return (
+                            <button
+                                key={ref.event.id}
+                                className="flex w-full items-center gap-2 rounded bg-[var(--arc-bg)] border border-[var(--arc-border)] px-2.5 py-2 text-left transition-colors hover:border-[var(--arc-accent)]"
+                                onClick={() => refIdx >= 0 && onNavigate(refIdx)}
+                            >
+                                {refType && EVENT_TYPE_ICON[refType] && (
+                                    <span className={cn('shrink-0', EVENT_TYPE_COLORS[refType])}>
+                                        {EVENT_TYPE_ICON[refType]}
+                                    </span>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] font-medium text-[var(--arc-text)] truncate">
+                                        {ref.event.name}
+                                    </div>
+                                    {refDate && (
+                                        <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">{refDate}</span>
+                                    )}
+                                </div>
+                                <span className="arc-mono shrink-0 rounded bg-cyan-400/10 px-1.5 py-0.5 text-[8px] font-bold text-cyan-400">
+                                    {ref.sharedCount} SHARED
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/*  Intelligence Section  */
 
 function IntelligenceSection({
     records,
@@ -511,10 +802,14 @@ function IntelligenceSection({
             <div className="space-y-1.5">
                 {records.map((rec) => {
                     const isOpen = expandedId === rec.id;
+                    const isDeclassified = !!rec.fictional_date_declassified;
                     return (
                         <div
                             key={rec.id}
-                            className="rounded border border-[var(--arc-border)] bg-[var(--arc-bg)] transition-colors"
+                            className={cn(
+                                'rounded border bg-[var(--arc-bg)] transition-all',
+                                isDeclassified ? 'border-[var(--arc-success)]/30' : 'border-[var(--arc-border)]',
+                            )}
                         >
                             <button
                                 className="flex w-full items-center gap-2 px-2.5 py-2 text-left"
@@ -529,6 +824,11 @@ function IntelligenceSection({
                                 )}>
                                     {rec.classification}
                                 </span>
+                                {isDeclassified && (
+                                    <span className="arc-mono rounded bg-[var(--arc-success)]/10 px-1 py-0.5 text-[7px] font-bold text-[var(--arc-success)]">
+                                        DECLASSIFIED
+                                    </span>
+                                )}
                                 {rec.observer && (
                                     <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--arc-text)]">
                                         <TypeIcon entityType={rec.observer.entity_type} size="sm" />
@@ -552,7 +852,8 @@ function IntelligenceSection({
                                     )}
 
                                     {rec.redacted_details && (
-                                        <div className="flex items-start gap-1.5 rounded bg-[var(--arc-danger)]/5 border border-[var(--arc-danger)]/20 px-2 py-1.5">
+                                        <div className="relative flex items-start gap-1.5 rounded bg-[var(--arc-danger)]/5 border border-[var(--arc-danger)]/20 px-2 py-1.5 overflow-hidden">
+                                            <div className="pointer-events-none absolute inset-0 arc-scanlines opacity-20" />
                                             <EyeOff className="size-3 shrink-0 text-[var(--arc-danger)] mt-0.5" />
                                             <p className="text-[10px] font-mono text-[var(--arc-danger)]">
                                                 {rec.redacted_details}
@@ -587,29 +888,39 @@ function IntelligenceSection({
                                                 <span className="text-[var(--arc-text)]">{rec.fictional_date_learned}</span>
                                             </div>
                                         )}
+                                        {rec.fictional_date_declassified && (
+                                            <div className="text-[9px]">
+                                                <span className="arc-mono font-bold text-[var(--arc-success)]">DECLASSIFIED: </span>
+                                                <span className="text-[var(--arc-text)]">{rec.fictional_date_declassified}</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Clickable observer/subject */}
                                     <div className="flex gap-3 pt-1 border-t border-[var(--arc-border)]">
                                         {rec.observer && (
-                                            <button
-                                                className="flex items-center gap-1 text-[9px] transition-colors hover:text-[var(--arc-accent)]"
-                                                onClick={() => onOpenEntity(rec.observer!)}
-                                            >
-                                                <TypeIcon entityType={rec.observer.entity_type} size="sm" />
-                                                <span className="arc-mono font-bold text-[var(--arc-text-muted)]">OBSERVER:</span>
-                                                <span className="font-medium text-[var(--arc-text)]">{rec.observer.name}</span>
-                                            </button>
+                                            <EntityQuickPreview universeId={universeId} entitySlug={rec.observer.slug} entityName={rec.observer.name} side="right">
+                                                <button
+                                                    className="flex items-center gap-1 text-[9px] transition-colors hover:text-[var(--arc-accent)]"
+                                                    onClick={() => onOpenEntity(rec.observer!)}
+                                                >
+                                                    <TypeIcon entityType={rec.observer.entity_type} size="sm" />
+                                                    <span className="arc-mono font-bold text-[var(--arc-text-muted)]">OBSERVER:</span>
+                                                    <span className="font-medium text-[var(--arc-text)]">{rec.observer.name}</span>
+                                                </button>
+                                            </EntityQuickPreview>
                                         )}
                                         {rec.subject && (
-                                            <button
-                                                className="flex items-center gap-1 text-[9px] transition-colors hover:text-[var(--arc-accent)]"
-                                                onClick={() => onOpenEntity(rec.subject!)}
-                                            >
-                                                <TypeIcon entityType={rec.subject.entity_type} size="sm" />
-                                                <span className="arc-mono font-bold text-[var(--arc-text-muted)]">SUBJECT:</span>
-                                                <span className="font-medium text-[var(--arc-text)]">{rec.subject.name}</span>
-                                            </button>
+                                            <EntityQuickPreview universeId={universeId} entitySlug={rec.subject.slug} entityName={rec.subject.name} side="right">
+                                                <button
+                                                    className="flex items-center gap-1 text-[9px] transition-colors hover:text-[var(--arc-accent)]"
+                                                    onClick={() => onOpenEntity(rec.subject!)}
+                                                >
+                                                    <TypeIcon entityType={rec.subject.entity_type} size="sm" />
+                                                    <span className="arc-mono font-bold text-[var(--arc-text-muted)]">SUBJECT:</span>
+                                                    <span className="font-medium text-[var(--arc-text)]">{rec.subject.name}</span>
+                                                </button>
+                                            </EntityQuickPreview>
                                         )}
                                     </div>
                                 </div>
