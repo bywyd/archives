@@ -117,7 +117,7 @@ export function EntityQuickPreview({
                     sideOffset={8}
                     align="start"
                     className={cn(
-                        'z-50 w-80 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface)] shadow-xl',
+                        'z-999 w-80 rounded-none border border-[var(--arc-accent)]/30 bg-[var(--arc-surface)] shadow-xl',
                         'arc-animate-scale-in'
                     )}
                     onMouseEnter={() => {
@@ -156,10 +156,10 @@ function PreviewContent({ entity, onOpenDossier }: { entity: ApiEntity; onOpenDo
     return (
         <div className="overflow-hidden">
             {/* Header */}
-            <div className="border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-3">
+            <div className="border-b border-[var(--arc-border)] bg-[var(--arc-bg-pure)] p-3">
                 <div className="flex gap-3">
                     {/* Profile Image */}
-                    <div className="size-14 shrink-0 overflow-hidden rounded border border-[var(--arc-border)] bg-[var(--arc-bg)]">
+                    <div className="size-14 shrink-0 overflow-hidden rounded-none border border-[var(--arc-border)] bg-[var(--arc-bg)]">
                         {profileImage ? (
                             <img
                                 src={profileImage.thumbnail_url ?? profileImage.url}
@@ -187,7 +187,7 @@ function PreviewContent({ entity, onOpenDossier }: { entity: ApiEntity; onOpenDo
                         <div className="mt-1 flex items-center gap-2">
                             <StatusBadge status={entity.entity_status} size="sm" />
                             {entity.is_featured && (
-                                <span className="arc-mono rounded bg-[var(--arc-warning)]/10 px-1 py-0.5 text-[8px] font-bold text-[var(--arc-warning)]">
+                                <span className="arc-mono rounded-none bg-[var(--arc-warning)]/10 px-1 py-0.5 text-[8px] font-bold text-[var(--arc-warning)]">
                                     ★ PRIORITY
                                 </span>
                             )}
@@ -205,7 +205,7 @@ function PreviewContent({ entity, onOpenDossier }: { entity: ApiEntity; onOpenDo
                 )}
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-1.5 rounded border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-2">
+                <div className="grid grid-cols-3 gap-1.5 rounded-none border border-[var(--arc-accent)] bg-[var(--arc-bg-pure)] p-2">
                     <QuickStat label="Relations" value={relationCount} />
                     <QuickStat label="Sections" value={entity.sections?.length ?? 0} />
                     <QuickStat label="Attributes" value={entity.attributes?.length ?? 0} />
@@ -247,10 +247,10 @@ function PreviewContent({ entity, onOpenDossier }: { entity: ApiEntity; onOpenDo
             </div>
 
             {/* Footer - Open Dossier Button */}
-            <div className="border-t border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3 py-2">
+            <div className="border-t border-[var(--arc-border)] bg-[var(--arc-bg-pure)] px-3 py-2">
                 <button
                     onClick={onOpenDossier}
-                    className="flex w-full items-center justify-center gap-1.5 rounded border border-[var(--arc-accent)]/30 bg-[var(--arc-accent)]/8 px-3 py-1.5 text-xs font-medium text-[var(--arc-accent)] transition-all hover:border-[var(--arc-accent)] hover:bg-[var(--arc-accent)]/15"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-none border border-[var(--arc-accent)]/30 bg-[var(--arc-accent)]/8 px-3 py-1.5 text-xs font-medium text-[var(--arc-accent)] transition-all hover:border-[var(--arc-accent)] hover:bg-[var(--arc-accent)]/15"
                 >
                     <ExternalLink className="size-3" />
                     Open Full Dossier

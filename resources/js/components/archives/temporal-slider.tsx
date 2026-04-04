@@ -412,7 +412,7 @@ export function TemporalSlider({ universeId, incidentSlug }: Props) {
                     {/* Progress fill */}
                     <div
                         className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-[var(--arc-accent)] transition-[width]"
-                        style={{ width: `${pct}%`, transitionDuration: isDragging ? '0ms' : '200ms' }}
+                        style={{ width: `${pct-1}%`, transitionDuration: isDragging ? '0ms' : '200ms' }}
                     />
 
                     {/* Phase transition dashed lines */}
@@ -484,7 +484,7 @@ export function TemporalSlider({ universeId, incidentSlug }: Props) {
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                     >
-                        <div className="size-5 rounded border-2 border-[var(--arc-accent)] bg-[var(--arc-surface)] shadow-lg" />
+                        <div className="size-8.5 rounded-full border-2 border-[var(--arc-accent)]/90 bg-[var(--arc-surface)] shadow-lg bg-transparent" />
                     </div>
                 </div>
 
@@ -508,7 +508,7 @@ export function TemporalSlider({ universeId, incidentSlug }: Props) {
                     <div className="flex items-center gap-3">
                         {currentPhase && (
                             <span className={cn(
-                                'arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold',
+                                'arc-mono rounded-none px-1.5 py-0.5 text-[9px] font-bold',
                                 PHASE_BG_COLORS[currentPhase.idx % PHASE_BG_COLORS.length],
                                 PHASE_TEXT_COLORS[currentPhase.idx % PHASE_TEXT_COLORS.length],
                             )}>
@@ -627,36 +627,43 @@ function EventCard({
     return (
         <div className="relative space-y-4 arc-animate-window-open" key={event.id}>
             {/* CLASSIFIED stamp for critical events */}
-            {isCritical && (
+            {/* {isCritical && (
                 <div className="pointer-events-none absolute right-4 top-4 z-10 rotate-[-12deg] select-none">
-                    <div className="arc-mono rounded border-2 border-[var(--arc-danger)]/40 px-3 py-1 text-[11px] font-black tracking-[0.3em] text-[var(--arc-danger)]/25">
+                    <div className="arc-mono rounded-none border-2 border-[var(--arc-danger)]/40 px-3 py-1 text-[11px] font-black tracking-[0.3em] text-[var(--arc-danger)]/25">
                         CLASSIFIED
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* Top row: type / threat badges + OPEN DOSSIER button */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
                     {eventTypeVal && (
-                        <span className={cn('arc-mono flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', EVENT_TYPE_COLORS[eventTypeVal] ?? 'text-[var(--arc-text-muted)] bg-[var(--arc-text-muted)]/10')}>
+                        <span className={cn('arc-mono flex items-center gap-1 rounded-none px-1.5 py-0.5 text-[9px] font-bold uppercase', EVENT_TYPE_COLORS[eventTypeVal] ?? 'text-[var(--arc-text-muted)] bg-[var(--arc-text-muted)]/10')}>
                             {EVENT_TYPE_ICON[eventTypeVal]}
                             {eventTypeVal}
                         </span>
                     )}
                     {threatVal && (
-                        <span className={cn('arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[threatVal] ?? SEVERITY_COLORS.moderate)}>
+                        <span className={cn('arc-mono rounded-none px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[threatVal] ?? SEVERITY_COLORS.moderate)}>
                             THREAT: {threatVal}
                         </span>
                     )}
                     {significanceVal && (
-                        <span className={cn('arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[significanceVal] ?? SEVERITY_COLORS.medium)}>
+                        <span className={cn('arc-mono rounded-none px-1.5 py-0.5 text-[9px] font-bold uppercase', SEVERITY_COLORS[significanceVal] ?? SEVERITY_COLORS.medium)}>
                             {significanceVal}
                         </span>
                     )}
                 </div>
+
+                {isCritical && (
+                    <div className="arc-mono rounded-none border-2 border-[var(--arc-danger)] px-3 py-1 text-[11px] font-black tracking-[0.3em] text-[var(--arc-danger)]">
+                        CLASSIFIED
+                    </div>
+                )}
+
                 <button
-                    className="flex items-center gap-1 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2 py-1 text-[9px] font-bold transition-colors hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]"
+                    className="flex items-center gap-1 rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2 py-1 text-[9px] font-bold transition-colors hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]"
                     onClick={() => onOpenDossier(event)}
                 >
                     <ExternalLink className="size-2.5" />
@@ -679,7 +686,7 @@ function EventCard({
 
             {/* Structured EVENT DATA table */}
             {dataRows.length > 0 && (
-                <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] overflow-hidden">
+                <div className="rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] overflow-hidden">
                     <div className="flex items-center gap-1.5 border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2.5 py-1.5">
                         <FileText className="size-2.5 text-[var(--arc-accent)]" />
                         <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-accent)]">
@@ -703,7 +710,7 @@ function EventCard({
 
             {/* Casualties alert */}
             {casualtiesVal && (
-                <div className="flex items-center gap-1.5 rounded border border-[var(--arc-danger)]/20 bg-[var(--arc-danger)]/5 px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5 rounded-none border border-[var(--arc-danger)]/20 bg-[var(--arc-danger)]/5 px-2.5 py-1.5">
                     <AlertCircle className="size-3 shrink-0 text-[var(--arc-danger)]" />
                     <span className="arc-mono text-[9px] font-bold text-[var(--arc-danger)]">
                         CASUALTIES: {casualtiesVal}
@@ -713,7 +720,7 @@ function EventCard({
 
             {/* Narrative */}
             {narrativeContent && (
-                <div className="rounded border border-[var(--arc-accent)]/20 bg-[var(--arc-accent)]/5 p-3">
+                <div className="rounded-none border border-[var(--arc-accent)]/20 bg-[var(--arc-accent)]/5 p-3">
                     <div className="flex items-center gap-1.5 mb-1.5">
                         <Clock className="size-3 text-[var(--arc-accent)]" />
                         <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-accent)]">
@@ -729,7 +736,7 @@ function EventCard({
 
             {/* Location */}
             {location && (
-                <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
+                <div className="rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                         <MapPin className="size-3 text-emerald-400" />
                         <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
@@ -751,7 +758,7 @@ function EventCard({
 
             {/* Participants */}
             {participants.length > 0 && (
-                <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
+                <div className="rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                         <Users className="size-3 text-[var(--arc-warning)]" />
                         <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
@@ -764,7 +771,7 @@ function EventCard({
                     </div>
                     <div className="space-y-1.5">
                         {participants.map((p, idx) => (
-                            <div key={p.entity?.id ?? idx} className="flex items-start gap-2 rounded bg-[var(--arc-surface-alt)] px-2.5 py-2">
+                            <div key={p.entity?.id ?? idx} className="flex items-start gap-2 rounded-none bg-[var(--arc-surface-alt)] px-2.5 py-2">
                                 {p.entity ? (
                                     <EntityQuickPreview universeId={universeId} entitySlug={p.entity.slug} entityName={p.entity.name} side="right">
                                         <button
@@ -780,13 +787,13 @@ function EventCard({
                                 )}
                                 <div className="flex flex-1 flex-wrap items-center gap-2 ml-auto">
                                     {p.description && (
-                                        <span className="arc-mono rounded bg-[var(--arc-accent)]/8 px-1.5 py-0.5 text-[9px] font-bold text-[var(--arc-accent)]">
+                                        <span className="arc-mono rounded-none bg-[var(--arc-accent)]/8 px-1.5 py-0.5 text-[9px] font-bold text-[var(--arc-accent)]">
                                             {p.description}
                                         </span>
                                     )}
                                     {p.status && (
                                         <span className={cn(
-                                            'arc-mono rounded px-1.5 py-0.5 text-[9px] font-bold',
+                                            'arc-mono rounded-none px-1.5 py-0.5 text-[9px] font-bold',
                                             p.status.toLowerCase().includes('killed') || p.status.toLowerCase().includes('dead') || p.status.toLowerCase().includes('fatal')
                                                 ? 'bg-[var(--arc-danger)]/10 text-[var(--arc-danger)]'
                                                 : p.status.toLowerCase().includes('survived') || p.status.toLowerCase().includes('escaped')
@@ -826,7 +833,7 @@ function EventCard({
             <div className="flex items-center justify-between border-t border-[var(--arc-border)] pt-3">
                 <button
                     className={cn(
-                        'flex items-center gap-1 rounded border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
+                        'flex items-center gap-1 rounded-none border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
                         currentIdx > 0 ? 'hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]' : 'opacity-30 cursor-not-allowed',
                     )}
                     onClick={() => onNavigate(currentIdx - 1)}
@@ -840,7 +847,7 @@ function EventCard({
                 </span>
                 <button
                     className={cn(
-                        'flex items-center gap-1 rounded border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
+                        'flex items-center gap-1 rounded-none border border-[var(--arc-border)] px-2.5 py-1.5 text-[9px] font-bold transition-colors',
                         currentIdx < allEvents.length - 1 ? 'hover:border-[var(--arc-accent)] hover:text-[var(--arc-accent)]' : 'opacity-30 cursor-not-allowed',
                     )}
                     onClick={() => onNavigate(currentIdx + 1)}
@@ -932,7 +939,7 @@ function RosterSidebar({
                                         >
                                             <button
                                                 className={cn(
-                                                    'flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left transition-all',
+                                                    'flex w-full items-center gap-1.5 rounded-none px-2 py-1.5 text-left transition-all mb-1',
                                                     isActive
                                                         ? 'bg-[var(--arc-accent)]/10 border border-[var(--arc-accent)]/30'
                                                         : 'border border-transparent opacity-40 hover:opacity-70',
@@ -976,7 +983,7 @@ function CrossReferencesSection({
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
+        <div className="rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
             <button
                 className="flex w-full items-center gap-1.5 text-left"
                 onClick={() => setIsOpen(!isOpen)}
@@ -1001,7 +1008,7 @@ function CrossReferencesSection({
                         return (
                             <button
                                 key={ref.event.id}
-                                className="flex w-full items-center gap-2 rounded bg-[var(--arc-bg)] border border-[var(--arc-border)] px-2.5 py-2 text-left transition-colors hover:border-[var(--arc-accent)]"
+                                className="flex w-full items-center gap-2 rounded-none bg-[var(--arc-bg)] border border-[var(--arc-border)] px-2.5 py-2 text-left transition-colors hover:border-[var(--arc-accent)]"
                                 onClick={() => refIdx >= 0 && onNavigate(refIdx)}
                             >
                                 {refType && EVENT_TYPE_ICON[refType] && (
@@ -1017,7 +1024,7 @@ function CrossReferencesSection({
                                         <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">{refDate}</span>
                                     )}
                                 </div>
-                                <span className="arc-mono shrink-0 rounded bg-cyan-400/10 px-1.5 py-0.5 text-[8px] font-bold text-cyan-400">
+                                <span className="arc-mono shrink-0 rounded-none bg-cyan-400/10 px-1.5 py-0.5 text-[8px] font-bold text-cyan-400">
                                     {ref.sharedCount} SHARED
                                 </span>
                             </button>
@@ -1043,7 +1050,7 @@ function IntelligenceSection({
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
     return (
-        <div className="rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
+        <div className="rounded-none border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3">
             <div className="flex items-center gap-1.5 mb-2">
                 <Eye className="size-3 text-[var(--arc-warning)]" />
                 <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
@@ -1063,7 +1070,7 @@ function IntelligenceSection({
                         <div
                             key={rec.id}
                             className={cn(
-                                'rounded border bg-[var(--arc-bg)] transition-all',
+                                'rounded-none border bg-[var(--arc-bg)] transition-all',
                                 isDeclassified ? 'border-[var(--arc-success)]/30' : 'border-[var(--arc-border)]',
                             )}
                         >
@@ -1075,13 +1082,13 @@ function IntelligenceSection({
                                     className={cn('size-2.5 text-[var(--arc-text-muted)] transition-transform', isOpen && 'rotate-90')}
                                 />
                                 <span className={cn(
-                                    'rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase',
+                                    'rounded-none border px-1.5 py-0.5 text-[8px] font-bold uppercase',
                                     CLASS_COLORS[rec.classification] ?? CLASS_COLORS.unknown,
                                 )}>
                                     {rec.classification}
                                 </span>
                                 {isDeclassified && (
-                                    <span className="arc-mono rounded bg-[var(--arc-success)]/10 px-1 py-0.5 text-[7px] font-bold text-[var(--arc-success)]">
+                                    <span className="arc-mono rounded-none bg-[var(--arc-success)]/10 px-1 py-0.5 text-[7px] font-bold text-[var(--arc-success)]">
                                         DECLASSIFIED
                                     </span>
                                 )}
@@ -1108,7 +1115,7 @@ function IntelligenceSection({
                                     )}
 
                                     {rec.redacted_details && (
-                                        <div className="relative flex items-start gap-1.5 rounded bg-[var(--arc-danger)]/5 border border-[var(--arc-danger)]/20 px-2 py-1.5 overflow-hidden">
+                                        <div className="relative flex items-start gap-1.5 rounded-none bg-[var(--arc-danger)]/5 border border-[var(--arc-danger)]/20 px-2 py-1.5 overflow-hidden">
                                             <div className="pointer-events-none absolute inset-0 arc-scanlines opacity-20" />
                                             <EyeOff className="size-3 shrink-0 text-[var(--arc-danger)] mt-0.5" />
                                             <p className="text-[10px] font-mono text-[var(--arc-danger)]">
