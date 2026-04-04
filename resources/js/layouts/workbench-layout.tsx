@@ -46,6 +46,23 @@ export default function WorkbenchLayout({ children, appName, appLogo }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                useWindowStore.getState().openWindow({
+                    type: 'search',
+                    title: 'Search Terminal',
+                    icon: 'SR',
+                    props: {},
+                });
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
     return (
         <div
             className="archives-workbench flex h-screen w-screen overflow-hidden"

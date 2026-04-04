@@ -42,6 +42,7 @@ class EntitySummaryResource extends JsonResource
                 'name' => $this->whenLoaded('universe', fn () => $this->universe->name),
                 'slug' => $this->whenLoaded('universe', fn () => $this->universe->slug),
             ],
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

@@ -69,6 +69,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('entities', [EntityController::class, 'index']);
         Route::get('entities/{entity}', [EntityController::class, 'show']);
         Route::get('entity-locations', [EntityController::class, 'entityLocations']);
+        Route::get('map-data', [EntityController::class, 'mapData']);
         Route::get('entities/{entity}/graph', [EntityController::class, 'graphData']);
         Route::get('entities/{entity}/relations', [EntityController::class, 'relations']);
         Route::get('entities/{entity}/preview', [EntityController::class, 'preview']);

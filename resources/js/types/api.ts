@@ -128,6 +128,25 @@ export type ApiEntityLocation = {
     longitude: number;
 };
 
+// --- Map data (single bundled endpoint for the operations map) ---
+
+export type ApiMapRecentEvent = {
+    id: number;
+    timeline_id: number;
+    timeline_name: string;
+    title: string;
+    event_type: 'incident' | 'discovery' | 'founding' | 'death' | 'battle' | 'outbreak' | 'political' | 'research' | 'deployment' | 'other' | null;
+    severity: 'low' | 'medium' | 'high' | 'critical' | 'extinction-level' | null;
+    fictional_date: string | null;
+    sort_order: number;
+};
+
+export type ApiMapData = {
+    pins: ApiEntityLocation[];
+    recent_entities: ApiEntitySummary[];
+    recent_events: ApiMapRecentEvent[];
+};
+
 // --- Entity ---
 
 export type ApiEntityPreview = {
@@ -150,6 +169,7 @@ export type ApiEntitySummary = {
     is_featured: boolean;
     is_locked: boolean;
     images: ApiImage[];
+    updatexd_at: string;
     pivot?: {
         role: string | null;
         description: string | null;

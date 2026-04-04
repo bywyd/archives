@@ -523,7 +523,85 @@ class EntityController extends Controller
     }
 
     /**
-     * Event Reconstruction — returns all Entity type=event sub-events
+     * Single endpoint for the operations map - returns pins, recently-edited
+     * entities, and recent timeline events in one request.
+     */
+    public function mapData(Universe $universe): \Illuminate\Http\JsonResponse
+    {
+        $data = $universe->rememberCache('map-data', 300, function () use ($universe) {
+            // 1. Entity pins (location-type entities with lat/lng attributes)
+            $pinEntities = $universe->entities()
+                ->with(['entityType', 'entityStatus', 'attributes.definition'])
+                ->whereHas('entityType', fn ($q) => $q->where('slug', 'location'))
+                ->get();
+
+            $pins = $pinEntities->map(function ($entity) {
+                $lat = $entity->attributes->first(fn ($a) => $a->definition?->slug === 'latitude');
+                $lng = $entity->attributes->first(fn ($a) => $a->definition?->slug === 'longitude');
+                if (! $lat?->value || ! $lng?->value) {
+                    return null;
+                }
+                return [
+                    'id'                => $entity->id,
+                    'universe_id'       => $entity->universe_id,
+                    'name'              => $entity->name,
+                    'slug'              => $entity->slug,
+                    'short_description' => $entity->short_description,
+                    'entity_type'       => $entity->entityType?->name,
+                    'entity_type_slug'  => $entity->entityType?->slug,
+                    'entity_status'     => $entity->entityStatus?->name,
+                    'entity_status_slug'=> $entity->entityStatus?->slug,
+                    'latitude'          => (float) $lat->value,
+                    'longitude'         => (float) $lng->value,
+                ];
+            })->filter()->values()->all();
+
+            // 2. Recently-edited entities (top 5, sorted by updated_at desc)
+            $recentEntities = $universe->entities()
+                ->with(['entityType', 'entityStatus', 'images'])
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get();
+
+            $recentEntityData = EntitySummaryResource::collection($recentEntities)->resolve();
+
+            // 3. Recent timeline events - first 3 timelines, top events by sort_order desc
+            $timelines = $universe->timelines()
+                ->with(['events' => fn ($q) => $q->orderByDesc('sort_order')->limit(8)])
+                ->orderBy('sort_order')
+                ->limit(3)
+                ->get();
+
+            $allEvents = [];
+            foreach ($timelines as $timeline) {
+                foreach ($timeline->events as $event) {
+                    $allEvents[] = [
+                        'id'            => $event->id,
+                        'timeline_id'   => $timeline->id,
+                        'timeline_name' => $timeline->name,
+                        'title'         => $event->title,
+                        'event_type'    => $event->event_type,
+                        'severity'      => $event->severity,
+                        'fictional_date'=> $event->fictional_date,
+                        'sort_order'    => $event->sort_order,
+                    ];
+                }
+            }
+            usort($allEvents, fn ($a, $b) => $b['sort_order'] - $a['sort_order']);
+            $recentEvents = array_slice($allEvents, 0, 4);
+
+            return [
+                'pins'            => $pins,
+                'recent_entities' => $recentEntityData,
+                'recent_events'   => $recentEvents,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Event Reconstruction - returns all Entity type=event sub-events
      * that are related to the given incident entity via 'part-of'.
      */
     public function reconstruction(Universe $universe, Entity $entity): \Illuminate\Http\JsonResponse

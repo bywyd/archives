@@ -43,6 +43,7 @@ import type {
     ApiRole,
     ApiPermission,
     ApiAdminUser,
+    ApiMapData,
     PaginatedResponse,
 } from '@/types/api';
 
@@ -215,6 +216,10 @@ export function searchUniverses(query: string, perPage = 20) {
 
 export function fetchEntityLocations(universeId: number) {
     return get<{ data: ApiEntityLocation[] }>(`/universes/${universeId}/entity-locations`);
+}
+
+export function fetchMapData(universeId: number) {
+    return get<ApiMapData>(`/universes/${universeId}/map-data`);
 }
 
 export function createUniverse(data: { name: string; slug?: string; description?: string; settings?: Record<string, unknown>, compound_names?: string[] }) {
