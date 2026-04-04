@@ -64,4 +64,63 @@ class TimelineEventController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /**
+     * Event Reconstruction  returns all events grouped by phase with full context.
+     */
+    public function reconstruction(Universe $universe, Timeline $timeline): \Illuminate\Http\JsonResponse
+    {
+        $timeline->load(['entities.entityType', 'images']);
+        $timeline->loadCount(['entities', 'events']);
+
+        $events = $timeline->events()
+            ->with([
+                'entity.entityType',
+                'entity.images',
+                'location.entityType',
+                'participants.entity.entityType',
+                'participants.entity.images',
+                'intelligenceRecords.observer.entityType',
+                'intelligenceRecords.subject.entityType',
+            ])
+            ->orderBy('sort_order')
+            ->get();
+
+        // Group events by phase (null-phase events go into "Unclassified")
+        $phases = [];
+        foreach ($events as $event) {
+            $phaseName = $event->phase ?? 'Unclassified';
+            if (!isset($phases[$phaseName])) {
+                $phases[$phaseName] = [
+                    'name' => $phaseName,
+                    'events' => [],
+                ];
+            }
+            $phases[$phaseName]['events'][] = (new TimelineEventResource($event))->resolve();
+        }
+
+        // Collect all unique entities involved as participants
+        $entityIds = collect();
+        foreach ($events as $event) {
+            if ($event->entity_id) {
+                $entityIds->push($event->entity_id);
+            }
+            foreach ($event->participants as $p) {
+                $entityIds->push($p->entity_id);
+            }
+        }
+
+        $entities = \App\Models\Entity::whereIn('id', $entityIds->unique())
+            ->with(['entityType', 'images'])
+            ->get()
+            ->map(fn ($e) => (new \App\Http\Resources\EntitySummaryResource($e))->resolve());
+
+        return response()->json([
+            'data' => [
+                'timeline' => (new \App\Http\Resources\TimelineResource($timeline))->resolve(),
+                'phases' => array_values($phases),
+                'entities' => $entities,
+            ],
+        ]);
+    }
 }

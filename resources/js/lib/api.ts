@@ -502,6 +502,22 @@ export function deleteTimelineEvent(universeId: number, timelineId: number, even
     return del(`/universes/${universeId}/timelines/${timelineId}/events/${eventId}`);
 }
 
+export function fetchTimelineReconstruction(universeId: number, timelineId: number) {
+    return get<{
+        data: {
+            timeline: ApiTimeline;
+            phases: Array<{ name: string; events: ApiTimelineEvent[] }>;
+            entities: import('@/types/api').ApiEntitySummary[];
+        };
+    }>(`/universes/${universeId}/timelines/${timelineId}/reconstruction`);
+}
+
+export function fetchEntityReconstruction(universeId: number, entitySlug: string) {
+    return get<{
+        data: import('@/types/api').ApiReconstructionResponse;
+    }>(`/universes/${universeId}/entities/${entitySlug}/reconstruction`);
+}
+
 // ---- Media Sources ----
 
 export function fetchMediaSources(universeId: number) {

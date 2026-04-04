@@ -84,6 +84,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('entities/{entity}/transmission-records', [EntityController::class, 'transmissionRecords']);
         Route::get('entities/{entity}/related-by-tag', [EntityController::class, 'relatedByTag']);
         Route::get('entities/{entity}/revisions', [EntityController::class, 'revisions']);
+        Route::get('entities/{entity}/reconstruction', [EntityController::class, 'reconstruction']);
     
         // Entity maps (read)
         Route::get('entities/{entity}/maps', [MapController::class, 'index']);
@@ -107,6 +108,7 @@ Route::middleware('throttle:api')->group(function () {
         // Timeline events (read)
         Route::get('timelines/{timeline}/events', [TimelineEventController::class, 'index']);
         Route::get('timelines/{timeline}/events/{event}', [TimelineEventController::class, 'show']);
+        Route::get('timelines/{timeline}/reconstruction', [TimelineEventController::class, 'reconstruction']);
     
         // Media sources (read)
         Route::get('media-sources', [MediaSourceController::class, 'index']);

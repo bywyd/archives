@@ -325,14 +325,18 @@ export type ApiTimelineEvent = {
     entity_id: number | null;
     title: string;
     description: string | null;
+    narrative: string | null;
     fictional_date: string | null;
     event_type: 'incident' | 'discovery' | 'founding' | 'death' | 'battle' | 'outbreak' | 'political' | 'research' | 'deployment' | 'other' | null;
     severity: 'low' | 'medium' | 'high' | 'critical' | 'extinction-level' | null;
+    phase: string | null;
+    duration: string | null;
     sort_order: number;
     metadata: Record<string, unknown> | null;
     entity?: ApiEntitySummary;
     location?: ApiEntitySummary;
     participants?: ApiTimelineEventParticipant[];
+    intelligence_records?: ApiEntityIntelligenceRecord[];
 } & Timestamps;
 
 // --- Timeline Event Participants ---
@@ -347,6 +351,14 @@ export type ApiTimelineEventParticipant = {
     notes: string | null;
     sort_order: number;
 } & Timestamps;
+
+// --- Event Reconstruction ---
+
+export type ApiReconstructionResponse = {
+    incident: ApiEntity;
+    phases: Array<{ name: string; events: ApiEntity[] }>;
+    entities: ApiEntitySummary[];
+};
 
 // --- Media Sources ---
 
@@ -495,6 +507,7 @@ export type ApiEntityIntelligenceRecord = {
     entity_id: number;
     observer_entity_id: number;
     subject_entity_id: number | null;
+    timeline_event_id: number | null;
     observer?: ApiEntitySummary;
     subject?: ApiEntitySummary;
     classification: 'known' | 'unknown' | 'classified' | 'redacted' | 'partial' | 'rumored' | 'discovered';

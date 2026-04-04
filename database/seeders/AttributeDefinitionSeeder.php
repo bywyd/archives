@@ -188,6 +188,7 @@ class AttributeDefinitionSeeder extends Seeder
         // Event attributes
         $eventType = MetaEntityType::where('slug', 'event')->first();
         $eventAttrs = [
+            ['name' => 'Phase', 'slug' => 'phase', 'data_type' => 'string', 'group_name' => 'Overview', 'is_filterable' => true, 'sort_order' => 0],
             ['name' => 'Date', 'slug' => 'date', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 1],
             ['name' => 'Duration', 'slug' => 'duration', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 2],
             ['name' => 'Location', 'slug' => 'location', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 3],

@@ -521,4 +521,92 @@ class EntityController extends Controller
 
         return response()->json(['data' => $data]);
     }
+
+    /**
+     * Event Reconstruction — returns all Entity type=event sub-events
+     * that are related to the given incident entity via 'part-of'.
+     */
+    public function reconstruction(Universe $universe, Entity $entity): \Illuminate\Http\JsonResponse
+    {
+        $partOfType = \App\Models\MetaEntityRelationType::where('slug', 'part-of')->first();
+        $participatedInType = \App\Models\MetaEntityRelationType::where('slug', 'participated-in')->first();
+
+        // Find all event entities that have outgoing 'part-of' relation to this incident
+        $eventEntities = Entity::whereHas('outgoingRelations', function ($q) use ($entity, $partOfType) {
+            $q->where('to_entity_id', $entity->id)
+              ->where('relation_type_id', $partOfType?->id);
+        })
+        ->with([
+            'entityType',
+            'entityStatus',
+            'images',
+            'sections.children',
+            'sections.images',
+            'attributes.definition',
+            'outgoingRelations.toEntity.entityType',
+            'outgoingRelations.relationType',
+            'incomingRelations.fromEntity.entityType',
+            'incomingRelations.relationType',
+            'intelligenceRecords.observer.entityType',
+            'intelligenceRecords.subject.entityType',
+        ])
+        ->orderBy('name')
+        ->get();
+
+        // Group by phase attribute
+        $phases = [];
+        $allParticipantIds = collect();
+
+        foreach ($eventEntities as $evt) {
+            $phaseAttr = $evt->attributes->first(fn ($a) => $a->definition?->slug === 'phase');
+            $phaseName = $phaseAttr?->value ?? 'Unclassified';
+            $dateAttr  = $evt->attributes->first(fn ($a) => $a->definition?->slug === 'date');
+
+            if (! isset($phases[$phaseName])) {
+                $phases[$phaseName] = [];
+            }
+            $phases[$phaseName][] = [
+                'event'     => $evt,
+                'date_sort' => $dateAttr?->value ?? '9999',
+            ];
+
+            // Collect unique participant entity IDs from incoming 'participated-in' relations
+            $participants = $evt->incomingRelations
+                ->where('relation_type_id', $participatedInType?->id);
+            foreach ($participants as $rel) {
+                $allParticipantIds->push($rel->from_entity_id);
+            }
+        }
+
+        // Sort events within each phase by date, then build response
+        $phaseList = [];
+        foreach ($phases as $name => $items) {
+            usort($items, fn ($a, $b) => strcmp($a['date_sort'], $b['date_sort']));
+            $phaseList[] = [
+                'name'   => $name,
+                'events' => array_map(
+                    fn ($item) => json_decode(json_encode(new EntityResource($item['event'])), true),
+                    $items
+                ),
+            ];
+        }
+
+        // Build entity roster (unique participants)
+        $uniqueIds = $allParticipantIds->unique()->values();
+        $roster = Entity::whereIn('id', $uniqueIds)
+            ->with(['entityType', 'entityStatus', 'images'])
+            ->get();
+
+        $incidentData = json_decode(json_encode(new EntityResource($entity->load([
+            'entityType', 'entityStatus', 'images', 'attributes.definition',
+        ]))), true);
+
+        return response()->json([
+            'data' => [
+                'incident' => $incidentData,
+                'phases'   => $phaseList,
+                'entities' => EntitySummaryResource::collection($roster)->resolve(),
+            ],
+        ]);
+    }
 }

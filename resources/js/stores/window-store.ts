@@ -30,6 +30,8 @@ export type WindowType =
     | 'map-viewer'
     | 'map-editor'
     | 'entity-revisions'
+    | 'event-reconstruction'
+    | 'temporal-slider'
     | 'login';
 
 export type WindowState = {
