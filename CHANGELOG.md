@@ -18,11 +18,20 @@
 
 - Removed map_entities_taype_and_has_map_relation_type migration that causing issues hwen seeding.
 
-## [1.1.0] - 2026-04-02
-
 ### Fixed
 
-- Fixed Search Connection Results graph UI to match with Entity Connection Graph UI
+- Fixed wiki changelog api data fetch failure
+
+### Updated
+
+- Updated design of Archives' universe sidebar.
+- Improved display of wiki changelog
+
+## [1.1.0] - 2026-04-02
+
+### Updated
+
+- Matched Search Connection Results graph UI with Entity Connection Graph UI
 
 ## [1.0.0] - 2026-04-01
 
