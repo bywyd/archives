@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileText, GitBranch, GitBranchIcon, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, Unlock } from 'lucide-react';
+import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileText, GitBranch, GitBranchIcon, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntityAffiliationHistory } from '@/components/archives/entity-affiliation-history';
 import { EntityAliases } from '@/components/archives/entity-aliases';
@@ -346,6 +346,44 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                             setEntity((prev) => prev ? { ...prev, is_locked: !prev.is_locked } : prev);
                         }}
                     />
+                )}
+                {entity.entity_type?.slug === 'incident' && (
+                    <>
+                        <ActionButton
+                            icon={<Sparkles className="size-3" />}
+                            title="Event Reconstruction"
+                            onClick={() =>
+                                openWindow({
+                                    type: 'event-reconstruction',
+                                    title: `RECONSTRUCTION — ${entity.name}`,
+                                    icon: 'RC',
+                                    props: {
+                                        key: `reconstruction-${universeId}-${entity.slug}`,
+                                        universeId,
+                                        incidentSlug: entity.slug,
+                                    },
+                                    size: { width: 960, height: 640 },
+                                })
+                            }
+                        />
+                        <ActionButton
+                            icon={<SlidersHorizontal className="size-3" />}
+                            title="Temporal Slider"
+                            onClick={() =>
+                                openWindow({
+                                    type: 'temporal-slider',
+                                    title: `TEMPORAL — ${entity.name}`,
+                                    icon: 'TS',
+                                    props: {
+                                        key: `temporal-${universeId}-${entity.slug}`,
+                                        universeId,
+                                        incidentSlug: entity.slug,
+                                    },
+                                    size: { width: 960, height: 580 },
+                                })
+                            }
+                        />
+                    </>
                 )}
                 <ActionButton
                     icon={pinned ? <PinOff className="size-3" /> : <Pin className="size-3" />}

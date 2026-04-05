@@ -78,6 +78,7 @@ class EntityMetaSeeder extends Seeder
             ['name' => 'Hosts', 'slug' => 'hosts', 'description' => 'An entity serves as host organism for a parasite or virus.', 'inverse_name' => 'Hosted By', 'is_directional' => true],
             ['name' => 'Used By', 'slug' => 'used-by', 'description' => 'A weapon, tool, or piece of equipment used by a character.', 'inverse_name' => 'Uses', 'is_directional' => true],
             ['name' => 'Has Map', 'slug' => 'has-map', 'description' => 'A relationship where one entity owns or contains a map.', 'inverse_name' => 'Is Map Of', 'is_directional' => true],
+            ['name' => 'Part Of', 'slug' => 'part-of', 'description' => 'A relationship where one entity is a sub-part or sub-event of another.', 'inverse_name' => 'Has Part', 'is_directional' => true],
         ];
 
         foreach ($entityRelationTypes as $type) {

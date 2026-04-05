@@ -14,6 +14,7 @@ class EntityIntelligenceRecord extends Model
         'entity_id',
         'observer_entity_id',
         'subject_entity_id',
+        'timeline_event_id',
         'classification',
         'discovered_during',
         'fictional_date_learned',
@@ -44,5 +45,10 @@ class EntityIntelligenceRecord extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Entity::class, 'subject_entity_id');
+    }
+
+    public function timelineEvent(): BelongsTo
+    {
+        return $this->belongsTo(TimelineEvent::class);
     }
 }

@@ -521,4 +521,170 @@ class EntityController extends Controller
 
         return response()->json(['data' => $data]);
     }
+
+    /**
+     * Single endpoint for the operations map - returns pins, recently-edited
+     * entities, and recent timeline events in one request.
+     */
+    public function mapData(Universe $universe): \Illuminate\Http\JsonResponse
+    {
+        $data = $universe->rememberCache('map-data', 300, function () use ($universe) {
+            // 1. Entity pins (location-type entities with lat/lng attributes)
+            $pinEntities = $universe->entities()
+                ->with(['entityType', 'entityStatus', 'attributes.definition'])
+                ->whereHas('entityType', fn ($q) => $q->where('slug', 'location'))
+                ->get();
+
+            $pins = $pinEntities->map(function ($entity) {
+                $lat = $entity->attributes->first(fn ($a) => $a->definition?->slug === 'latitude');
+                $lng = $entity->attributes->first(fn ($a) => $a->definition?->slug === 'longitude');
+                if (! $lat?->value || ! $lng?->value) {
+                    return null;
+                }
+                return [
+                    'id'                => $entity->id,
+                    'universe_id'       => $entity->universe_id,
+                    'name'              => $entity->name,
+                    'slug'              => $entity->slug,
+                    'short_description' => $entity->short_description,
+                    'entity_type'       => $entity->entityType?->name,
+                    'entity_type_slug'  => $entity->entityType?->slug,
+                    'entity_status'     => $entity->entityStatus?->name,
+                    'entity_status_slug'=> $entity->entityStatus?->slug,
+                    'latitude'          => (float) $lat->value,
+                    'longitude'         => (float) $lng->value,
+                ];
+            })->filter()->values()->all();
+
+            // 2. Recently-edited entities (top 5, sorted by updated_at desc)
+            $recentEntities = $universe->entities()
+                ->with(['entityType', 'entityStatus', 'images'])
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get();
+
+            $recentEntityData = EntitySummaryResource::collection($recentEntities)->resolve();
+
+            // 3. Recent timeline events - first 3 timelines, top events by sort_order desc
+            $timelines = $universe->timelines()
+                ->with(['events' => fn ($q) => $q->orderByDesc('sort_order')->limit(8)])
+                ->orderBy('sort_order')
+                ->limit(3)
+                ->get();
+
+            $allEvents = [];
+            foreach ($timelines as $timeline) {
+                foreach ($timeline->events as $event) {
+                    $allEvents[] = [
+                        'id'            => $event->id,
+                        'timeline_id'   => $timeline->id,
+                        'timeline_name' => $timeline->name,
+                        'title'         => $event->title,
+                        'event_type'    => $event->event_type,
+                        'severity'      => $event->severity,
+                        'fictional_date'=> $event->fictional_date,
+                        'sort_order'    => $event->sort_order,
+                    ];
+                }
+            }
+            usort($allEvents, fn ($a, $b) => $b['sort_order'] - $a['sort_order']);
+            $recentEvents = array_slice($allEvents, 0, 4);
+
+            return [
+                'pins'            => $pins,
+                'recent_entities' => $recentEntityData,
+                'recent_events'   => $recentEvents,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Event Reconstruction - returns all Entity type=event sub-events
+     * that are related to the given incident entity via 'part-of'.
+     */
+    public function reconstruction(Universe $universe, Entity $entity): \Illuminate\Http\JsonResponse
+    {
+        $partOfType = \App\Models\MetaEntityRelationType::where('slug', 'part-of')->first();
+        $participatedInType = \App\Models\MetaEntityRelationType::where('slug', 'participated-in')->first();
+
+        // Find all event entities that have outgoing 'part-of' relation to this incident
+        $eventEntities = Entity::whereHas('outgoingRelations', function ($q) use ($entity, $partOfType) {
+            $q->where('to_entity_id', $entity->id)
+              ->where('relation_type_id', $partOfType?->id);
+        })
+        ->with([
+            'entityType',
+            'entityStatus',
+            'images',
+            'sections.children',
+            'sections.images',
+            'attributes.definition',
+            'outgoingRelations.toEntity.entityType',
+            'outgoingRelations.relationType',
+            'incomingRelations.fromEntity.entityType',
+            'incomingRelations.relationType',
+            'intelligenceRecords.observer.entityType',
+            'intelligenceRecords.subject.entityType',
+        ])
+        ->orderBy('name')
+        ->get();
+
+        // Group by phase attribute
+        $phases = [];
+        $allParticipantIds = collect();
+
+        foreach ($eventEntities as $evt) {
+            $phaseAttr = $evt->attributes->first(fn ($a) => $a->definition?->slug === 'phase');
+            $phaseName = $phaseAttr?->value ?? 'Unclassified';
+            $dateAttr  = $evt->attributes->first(fn ($a) => $a->definition?->slug === 'date');
+
+            if (! isset($phases[$phaseName])) {
+                $phases[$phaseName] = [];
+            }
+            $phases[$phaseName][] = [
+                'event'     => $evt,
+                'date_sort' => $dateAttr?->value ?? '9999',
+            ];
+
+            // Collect unique participant entity IDs from incoming 'participated-in' relations
+            $participants = $evt->incomingRelations
+                ->where('relation_type_id', $participatedInType?->id);
+            foreach ($participants as $rel) {
+                $allParticipantIds->push($rel->from_entity_id);
+            }
+        }
+
+        // Sort events within each phase by date, then build response
+        $phaseList = [];
+        foreach ($phases as $name => $items) {
+            usort($items, fn ($a, $b) => strcmp($a['date_sort'], $b['date_sort']));
+            $phaseList[] = [
+                'name'   => $name,
+                'events' => array_map(
+                    fn ($item) => json_decode(json_encode(new EntityResource($item['event'])), true),
+                    $items
+                ),
+            ];
+        }
+
+        // Build entity roster (unique participants)
+        $uniqueIds = $allParticipantIds->unique()->values();
+        $roster = Entity::whereIn('id', $uniqueIds)
+            ->with(['entityType', 'entityStatus', 'images'])
+            ->get();
+
+        $incidentData = json_decode(json_encode(new EntityResource($entity->load([
+            'entityType', 'entityStatus', 'images', 'attributes.definition',
+        ]))), true);
+
+        return response()->json([
+            'data' => [
+                'incident' => $incidentData,
+                'phases'   => $phaseList,
+                'entities' => EntitySummaryResource::collection($roster)->resolve(),
+            ],
+        ]);
+    }
 }

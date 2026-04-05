@@ -11,12 +11,14 @@ use App\Http\Resources\UniverseResource;
 use App\Models\Category;
 use App\Models\Entity;
 use App\Models\EntityRelation;
+use App\Models\EntitySection;
 use App\Models\MediaSource;
 use App\Models\MetaEntityType;
 use App\Models\Revision;
 use App\Models\Timeline;
 use App\Models\Universe;
 use App\Services\UniverseService;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -454,7 +456,15 @@ class WikiController extends Controller
     public function changelog(Request $request): Response
     {
         $revisions = Revision::query()
-            ->with(['user', 'revisionable.universe', 'revisionable.entity.universe'])
+                ->with([
+                'user',
+                'revisionable' => function (MorphTo $morphTo) {
+                    $morphTo->morphWith([
+                        Entity::class => ['universe'],
+                        EntitySection::class => ['entity.universe'],
+                    ]);
+                },
+            ])
             ->orderByDesc('created_at')
             ->paginate($request->input('per_page', 30))
             ->withQueryString();

@@ -43,6 +43,7 @@ import type {
     ApiRole,
     ApiPermission,
     ApiAdminUser,
+    ApiMapData,
     PaginatedResponse,
 } from '@/types/api';
 
@@ -215,6 +216,10 @@ export function searchUniverses(query: string, perPage = 20) {
 
 export function fetchEntityLocations(universeId: number) {
     return get<{ data: ApiEntityLocation[] }>(`/universes/${universeId}/entity-locations`);
+}
+
+export function fetchMapData(universeId: number) {
+    return get<ApiMapData>(`/universes/${universeId}/map-data`);
 }
 
 export function createUniverse(data: { name: string; slug?: string; description?: string; settings?: Record<string, unknown>, compound_names?: string[] }) {
@@ -500,6 +505,22 @@ export function updateTimelineEvent(universeId: number, timelineId: number, even
 
 export function deleteTimelineEvent(universeId: number, timelineId: number, eventId: number) {
     return del(`/universes/${universeId}/timelines/${timelineId}/events/${eventId}`);
+}
+
+export function fetchTimelineReconstruction(universeId: number, timelineId: number) {
+    return get<{
+        data: {
+            timeline: ApiTimeline;
+            phases: Array<{ name: string; events: ApiTimelineEvent[] }>;
+            entities: import('@/types/api').ApiEntitySummary[];
+        };
+    }>(`/universes/${universeId}/timelines/${timelineId}/reconstruction`);
+}
+
+export function fetchEntityReconstruction(universeId: number, entitySlug: string) {
+    return get<{
+        data: import('@/types/api').ApiReconstructionResponse;
+    }>(`/universes/${universeId}/entities/${entitySlug}/reconstruction`);
 }
 
 // ---- Media Sources ----

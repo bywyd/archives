@@ -117,7 +117,7 @@ export function TimelineView({ universeId, timelineId }: Props) {
                         onClick={() =>
                             openWindow({
                                 type: 'timeline-editor',
-                                title: `EDIT  ${timeline.name}`,
+                                title: `EDIT - ${timeline.name}`,
                                 icon: 'TL',
                                 props: {
                                     key: `edit-timeline-${universeId}-${timeline.id}`,

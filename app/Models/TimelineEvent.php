@@ -16,8 +16,11 @@ class TimelineEvent extends Model
         'location_entity_id',
         'title',
         'description',
+        'narrative',
         'event_type',
         'severity',
+        'phase',
+        'duration',
         'fictional_date',
         'sort_order',
         'metadata',
@@ -46,5 +49,10 @@ class TimelineEvent extends Model
     public function participants(): HasMany
     {
         return $this->hasMany(TimelineEventParticipant::class)->orderBy('sort_order');
+    }
+
+    public function intelligenceRecords(): HasMany
+    {
+        return $this->hasMany(EntityIntelligenceRecord::class)->orderBy('sort_order');
     }
 }

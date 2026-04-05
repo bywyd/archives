@@ -69,6 +69,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('entities', [EntityController::class, 'index']);
         Route::get('entities/{entity}', [EntityController::class, 'show']);
         Route::get('entity-locations', [EntityController::class, 'entityLocations']);
+        Route::get('map-data', [EntityController::class, 'mapData']);
         Route::get('entities/{entity}/graph', [EntityController::class, 'graphData']);
         Route::get('entities/{entity}/relations', [EntityController::class, 'relations']);
         Route::get('entities/{entity}/preview', [EntityController::class, 'preview']);
@@ -84,6 +85,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('entities/{entity}/transmission-records', [EntityController::class, 'transmissionRecords']);
         Route::get('entities/{entity}/related-by-tag', [EntityController::class, 'relatedByTag']);
         Route::get('entities/{entity}/revisions', [EntityController::class, 'revisions']);
+        Route::get('entities/{entity}/reconstruction', [EntityController::class, 'reconstruction']);
     
         // Entity maps (read)
         Route::get('entities/{entity}/maps', [MapController::class, 'index']);
@@ -107,6 +109,7 @@ Route::middleware('throttle:api')->group(function () {
         // Timeline events (read)
         Route::get('timelines/{timeline}/events', [TimelineEventController::class, 'index']);
         Route::get('timelines/{timeline}/events/{event}', [TimelineEventController::class, 'show']);
+        Route::get('timelines/{timeline}/reconstruction', [TimelineEventController::class, 'reconstruction']);
     
         // Media sources (read)
         Route::get('media-sources', [MediaSourceController::class, 'index']);

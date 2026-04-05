@@ -26,6 +26,8 @@ const EntityMapEditor          = lazy(() => import('@/components/archives/entity
 const LicenseDisclaimer       = lazy(() => import('../legal/license-disclaimer').then((m) => ({ default: m.LicenseDisclaimer })));
 const LoginWindow             = lazy(() => import('@/components/auth/login-window').then((m) => ({ default: m.LoginWindow })));
 const EntityRevisionsWindow   = lazy(() => import('@/components/archives/entity-revisions-window').then((m) => ({ default: m.EntityRevisionsWindow })));
+const EventReconstruction     = lazy(() => import('@/components/archives/event-reconstruction').then((m) => ({ default: m.EventReconstruction })));
+const TemporalSlider          = lazy(() => import('@/components/archives/temporal-slider').then((m) => ({ default: m.TemporalSlider })));
 
 function WindowFallback() {
     return (
@@ -211,6 +213,21 @@ function renderContent(win: WindowState) {
                     universeId={win.props.universeId as number}
                     entityId={win.props.entityId as number}
                     entityName={win.props.entityName as string}
+                />
+            );
+        case 'event-reconstruction':
+            return (
+                <EventReconstruction
+                    universeId={win.props.universeId as number}
+                    incidentSlug={win.props.incidentSlug as string}
+                    initialEventSlug={win.props.initialEventSlug as string | undefined}
+                />
+            );
+        case 'temporal-slider':
+            return (
+                <TemporalSlider
+                    universeId={win.props.universeId as number}
+                    incidentSlug={win.props.incidentSlug as string}
                 />
             );
         default:

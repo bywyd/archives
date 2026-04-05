@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { ComposableMap, Geographies, Geography, Line, Marker } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import * as api from '@/lib/api';
 import { useWindowStore } from '@/stores/window-store';
 import { useArchive } from '@/contexts/archive-context';
 import { useHistoryStore } from '@/stores/history-store';
 import { useUniverseTheme } from '@/hooks/use-universe-theme';
 import type { Auth } from '@/types/auth';
-import type { ApiEntityLocation, ApiUniverse } from '@/types/api';
+import type { ApiEntityLocation, ApiUniverse, ApiEntitySummary, ApiMapRecentEvent } from '@/types/api';
 import type { PinnedItem, HistoryEntry } from '@/stores/history-store';
 import AppLogoIcon from '../app-logo-icon';
-import { Brain, Clock, Github, Pin, ScrollIcon, Search } from 'lucide-react';
+import { Brain, Clock, Github, Pin, RefreshCw, ScrollIcon, Search, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -25,6 +25,29 @@ const TOOLTIP_WIDTH  = 260;
 const HIDE_DELAY_UNI = 150;
 const HIDE_DELAY_PIN = 180;
 const HIDE_DELAY_TIP = 100;
+
+//  Event type → indicator color
+const EVENT_TYPE_COLORS: Record<string, string> = {
+    incident:    '#dc2626',
+    discovery:   '#7c3aed',
+    founding:    '#059669',
+    death:       '#991b1b',
+    battle:      '#ea580c',
+    outbreak:    '#d97706',
+    political:   '#2563eb',
+    research:    '#0891b2',
+    deployment:  '#16a34a',
+    other:       '#64748b',
+};
+
+//  Severity → color
+const SEVERITY_COLORS: Record<string, string> = {
+    low:                '#64748b',
+    medium:             '#d97706',
+    high:               '#dc2626',
+    critical:           '#991b1b',
+    'extinction-level': '#7f1d1d',
+};
 
 //  Entity status → indicator color 
 const STATUS_COLORS: Record<string, string> = {
@@ -118,6 +141,8 @@ type EntityHoverState = {
     x: number;
     y: number;
 };
+
+
 
 //  Utilities 
 
@@ -431,11 +456,8 @@ function MapLegend({ entityPinCount, universeCount }: MapLegendProps) {
     ];
 
     return (
-        <div
-            className="absolute left-4 bottom-12 z-20 pointer-events-none select-none"
-            style={DARK_PANEL_STYLE}
-        >
-            <div className="px-2 pb-2" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
+        <div className="select-none pointer-events-none" style={DARK_PANEL_STYLE}>
+            <div className="px-2 py-1.5" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
                 <span className="text-[9px] font-mono tracking-wider uppercase text-blue-400/70">Map Legend</span>
             </div>
 
@@ -496,11 +518,8 @@ function QuickActions({ onSearch, onAnalysis, onOpenLicenseDisclaimer }: QuickAc
     };
 
     return (
-        <div
-            className="absolute left-4 bottom-56 z-20 select-none flex flex-col"
-            style={DARK_PANEL_STYLE}
-        >
-            <div className="px-2 pb-2" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
+        <div className="select-none flex flex-col pointer-events-auto" style={DARK_PANEL_STYLE}>
+            <div className="px-2 py-1.5" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
                 <span className="text-[9px] font-mono tracking-wider uppercase text-blue-400/70">Quick Access</span>
             </div>
 
@@ -538,7 +557,7 @@ function QuickActions({ onSearch, onAnalysis, onOpenLicenseDisclaimer }: QuickAc
                 <span>Analysis</span>
             </button>
 
-            <button
+            {/* <button
                 style={{ ...btnBase, borderTop: '1px solid rgba(37,99,235,0.08)' }}
                 onClick={onOpenLicenseDisclaimer}
                 title="Open License Disclaimer"
@@ -553,9 +572,9 @@ function QuickActions({ onSearch, onAnalysis, onOpenLicenseDisclaimer }: QuickAc
             >
                 <ScrollIcon size={10} />
                 <span>Disclaimer</span>
-            </button>
+            </button> */}
 
-            <a href="https://github.com/bywyd/archives" target="_blank" rel="noopener noreferrer" 
+            {/* <a href="https://github.com/bywyd/archives" target="_blank" rel="noopener noreferrer"
                 style={{ ...btnBase, borderTop: '1px solid rgba(37,99,235,0.08)' }}
                 title="Open GitHub Repository"
                 onMouseEnter={(e) => {
@@ -569,8 +588,200 @@ function QuickActions({ onSearch, onAnalysis, onOpenLicenseDisclaimer }: QuickAc
             >
                 <Github size={10} style={{ color: 'rgba(148,163,184,0.75)' }} />
                 Git Repo
-            </a>
+            </a> */}
+        </div>
+    );
+}
 
+//  Recent events panel 
+const VIOLET_PANEL_STYLE: React.CSSProperties = {
+    background: 'rgba(15,23,42,0.92)',
+    border: '1px solid rgba(139,92,246,0.2)',
+    borderLeftWidth: '3px',
+    borderLeftColor: 'rgba(139,92,246,0.5)',
+};
+
+type RecentEventsPanelProps = {
+    events: ApiMapRecentEvent[];
+    universeId: number;
+    onOpenTimeline: (timelineId: number, timelineName: string, universeId: number) => void;
+};
+
+function RecentEventsPanel({ events, universeId, onOpenTimeline }: RecentEventsPanelProps) {
+    const [expanded, setExpanded] = useState(true);
+    if (events.length === 0) return null;
+
+    return (
+        <div className="select-none pointer-events-auto" style={VIOLET_PANEL_STYLE}>
+            <div
+                className="px-2.5 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                style={{ borderBottom: '1px solid rgba(139,92,246,0.15)' }}
+                onClick={() => setExpanded((e) => !e)}
+            >
+                <Zap size={8} style={{ color: 'rgba(167,139,250,0.7)', flexShrink: 0 }} />
+                <span className="text-[9px] font-mono tracking-widest uppercase" style={{ color: 'rgba(167,139,250,0.7)' }}>Event Feed</span>
+                <span className="ml-auto text-[8px] font-mono" style={{ color: 'rgba(167,139,250,0.4)' }}>{events.length}</span>
+            </div>
+            <div className={cn(
+                "overflow-hidden transition-all duration-200 ease-in-out",
+                expanded ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+            )}>
+                {events.map((ev) => {
+                    const typeColor = EVENT_TYPE_COLORS[ev.event_type ?? ''] ?? '#64748b';
+                    const sevColor  = SEVERITY_COLORS[ev.severity ?? ''] ?? '#64748b';
+                    return (
+                        <button
+                            key={ev.id}
+                            className="w-full px-2.5 py-1.5 flex items-start gap-2 text-left transition-colors"
+                            style={{ borderBottom: '1px solid rgba(139,92,246,0.07)' }}
+                            onClick={() => onOpenTimeline(ev.timeline_id, ev.timeline_name, universeId)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            {/* Event-type badge */}
+                            <span
+                                className="text-[7px] font-mono uppercase tracking-widest shrink-0 px-1 py-px mt-px"
+                                style={{
+                                    color: typeColor,
+                                    background: `${typeColor}18`,
+                                    border: `1px solid ${typeColor}35`,
+                                }}
+                            >
+                                {ev.event_type ?? 'EVT'}
+                            </span>
+                            {/* Title + timeline name */}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <div className="text-[10px] font-mono truncate leading-tight" style={{ color: 'rgba(226,232,240,0.9)' }}>
+                                    {ev.title}
+                                </div>
+                                <div className="text-[8px] font-mono truncate leading-tight" style={{ color: 'rgba(100,116,139,0.65)' }}>
+                                    {ev.fictional_date ? `${ev.fictional_date} · ` : ''}{ev.timeline_name}
+                                </div>
+                            </div>
+                            {/* Severity dot */}
+                            {ev.severity && (
+                                <span
+                                    style={{
+                                        width: 5, height: 5, borderRadius: '50%', flexShrink: 0, marginTop: 4,
+                                        background: sevColor,
+                                        boxShadow: `0 0 4px ${sevColor}80`,
+                                    }}
+                                />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+//  Intel updates panel (recently-edited entities) 
+const EMERALD_PANEL_STYLE: React.CSSProperties = {
+    background: 'rgba(15,23,42,0.92)',
+    border: '1px solid rgba(16,185,129,0.2)',
+    borderLeftWidth: '3px',
+    borderLeftColor: 'rgba(16,185,129,0.45)',
+};
+
+type IntelUpdatesPanelProps = {
+    entities: ApiEntitySummary[];
+    onOpenDossier: (slug: string, name: string, universeId: number) => void;
+    universeId: number;
+};
+
+function IntelUpdatesPanel({ entities, onOpenDossier, universeId }: IntelUpdatesPanelProps) {
+    const [expanded, setExpanded] = useState(true);
+    if (entities.length === 0) return null;
+    const visible = entities.slice(0, 4);
+
+    return (
+        <div className="select-none pointer-events-auto" style={EMERALD_PANEL_STYLE}>
+            <div
+                className="px-2.5 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                style={{ borderBottom: '1px solid rgba(16,185,129,0.15)' }}
+                onClick={() => setExpanded((e) => !e)}
+            >
+                <RefreshCw size={8} style={{ color: 'rgba(52,211,153,0.7)', flexShrink: 0 }} />
+                <span className="text-[9px] font-mono tracking-widest uppercase" style={{ color: 'rgba(52,211,153,0.7)' }}>Intel Updates</span>
+            </div>
+            <div className={cn(
+                "overflow-hidden transition-all duration-200 ease-in-out",
+                expanded ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+            )}>
+                {visible.map((entity) => {
+                    const color = statusColor(entity.entity_status?.slug);
+                    const profileImg = entity.images?.find((i) => i.type === 'profile');
+                    return (
+                        <button
+                            key={entity.id}
+                            className="w-full px-2.5 py-1.5 flex items-center gap-2 text-left transition-colors"
+                            style={{ borderBottom: '1px solid rgba(16,185,129,0.07)' }}
+                            onClick={() => onOpenDossier(entity.slug, entity.name, universeId)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.07)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            {/* Thumbnail or status dot */}
+                            {profileImg ? (
+                                <img
+                                    src={profileImg.thumbnail_url ?? profileImg.url}
+                                    alt=""
+                                    style={{
+                                        width: 20, height: 20, flexShrink: 0, objectFit: 'cover',
+                                        border: `1px solid ${color}35`, opacity: 0.8,
+                                    }}
+                                />
+                            ) : (
+                                <span style={{
+                                    width: 20, height: 20, flexShrink: 0,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    background: `${color}12`, border: `1px solid ${color}28`,
+                                }}>
+                                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
+                                </span>
+                            )}
+                            {/* Name + type */}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                                <div className="text-[10px] font-mono truncate leading-tight" style={{ color: 'rgba(203,213,225,0.9)' }}>{entity.name}</div>
+                                <div className="text-[8px] font-mono truncate leading-tight uppercase tracking-wide" style={{ color: 'rgba(100,116,139,0.65)' }}>
+                                    {entity.entity_type?.name ?? ''}
+                                </div>
+                            </div>
+                            {/* Updated-at badge */}
+                            <span className="text-[8px] font-mono shrink-0" style={{ color: 'rgba(52,211,153,0.5)' }}>
+                                {relativeTime(entity.updated_at)}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+//  Corner brackets  atmosphere 
+function CornerBrackets() {
+    const SZ = 20;
+    const stroke = 'rgba(37,99,235,0.35)';
+    const sw = 1.5;
+    return (
+        <div className="absolute inset-0 z-10 pointer-events-none select-none">
+            {/* Top-left */}
+            <svg width={SZ} height={SZ} className="absolute top-3 left-3">
+                <polyline points={`0,${SZ} 0,0 ${SZ},0`} fill="none" stroke={stroke} strokeWidth={sw} />
+            </svg>
+            {/* Top-right */}
+            <svg width={SZ} height={SZ} className="absolute top-3 right-3">
+                <polyline points={`0,0 ${SZ},0 ${SZ},${SZ}`} fill="none" stroke={stroke} strokeWidth={sw} />
+            </svg>
+            {/* Bottom-left */}
+            <svg width={SZ} height={SZ} className="absolute bottom-3 left-3">
+                <polyline points={`0,0 0,${SZ} ${SZ},${SZ}`} fill="none" stroke={stroke} strokeWidth={sw} />
+            </svg>
+            {/* Bottom-right */}
+            <svg width={SZ} height={SZ} className="absolute bottom-3 right-3">
+                <polyline points={`${SZ},0 ${SZ},${SZ} 0,${SZ}`} fill="none" stroke={stroke} strokeWidth={sw} />
+            </svg>
         </div>
     );
 }
@@ -640,9 +851,9 @@ function LoadingIndicator({ pinsLoading }: LoadingIndicatorProps) {
     );
 }
 
-type StatusBarProps = { markerCount: number; universeCount: number; entityPinCount: number };
+type StatusBarProps = { markerCount: number; universeCount: number; entityPinCount: number; onLicenseDisclaimer?: () => void };
 
-function StatusBar({ markerCount, universeCount, entityPinCount }: StatusBarProps) {
+function StatusBar({ markerCount, universeCount, entityPinCount, onLicenseDisclaimer }: StatusBarProps) {
     const [utc, setUtc] = useState(() => new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC');
 
     useEffect(() => {
@@ -653,7 +864,7 @@ function StatusBar({ markerCount, universeCount, entityPinCount }: StatusBarProp
     }, []);
 
     return (
-        <div className="absolute inset-x-0 bottom-0 z-20 h-7 flex items-center gap-6 px-4 font-mono text-[10px] tracking-widest select-none pointer-events-none uppercase"
+        <div className="absolute inset-x-0 bottom-0 z-20 h-7 flex items-center gap-6 px-4 font-mono text-[10px] select-none uppercase"
             style={{ background: 'rgba(2, 6, 23, 0.98)', borderTop: '1px solid rgba(56, 189, 248, 0.2)' }}>
             
             <span className="text-sky-500/80">
@@ -663,7 +874,7 @@ function StatusBar({ markerCount, universeCount, entityPinCount }: StatusBarProp
             <span className="text-slate-700">::</span>
             
             <span className="text-slate-500">
-                Multiverse-Layer: <span className="text-slate-200">0{universeCount}</span>
+                Theaters: <span className="text-slate-200">0{universeCount}</span>
             </span>
 
             <span className="text-slate-500">
@@ -677,6 +888,18 @@ function StatusBar({ markerCount, universeCount, entityPinCount }: StatusBarProp
             <div className="flex items-center gap-1 ml-auto">
                 {/* <span className="text-slate-600 italic lowercase">syncing_uplink...</span>
                 <span className="text-sky-500/40">● ○ ○</span> */}
+                
+                {onLicenseDisclaimer && (
+                    <button className="ml-4 text-slate-500 cursor-pointer flex gap-1 my-auto items-center text-center hover:text-sky-200 transition-colors" onClick={onLicenseDisclaimer}>
+                        <ScrollIcon size={12} /> License
+                    </button>
+                )}
+
+                {/* github link */}
+                <a href="https://github.com/bywyd/archives" target="_blank" rel="noopener noreferrer" className="ml-4 flex gap-1 my-auto items-center text-center text-slate-500 hover:text-sky-200 transition-colors hover:cursor-pointer">
+                    <Github size={12} /> Github
+                </a>
+
                 <span className="ml-4 text-slate-500">{utc}</span>
             </div>
         </div>
@@ -724,6 +947,7 @@ function UniverseMarkerDot({ marker, isHovered, isDimmed, onMouseEnter, onMouseL
     const outerR = isPrimary ? 7 : 5;
     const innerR = isPrimary ? 3 : 2;
     const color = isPrimary ? '#2563eb' : '#1d4ed8';
+    const animDur = isPrimary ? '2.4s' : '3.2s';
 
     return (
         <Marker coordinates={marker.coordinates}>
@@ -733,9 +957,14 @@ function UniverseMarkerDot({ marker, isHovered, isDimmed, onMouseEnter, onMouseL
                 onClick={() => onClick(marker)}
                 style={{ cursor: 'pointer', opacity: isDimmed ? 0.2 : 1, transition: 'opacity 0.25s' }}
             >
-                {/* Pulse ring */}
-                <circle r={outerR + 4} fill="none" stroke={color} strokeWidth={0.8} opacity={isHovered ? 0.6 : 0.2} />
-                {/* Outer ring */}
+                {/* Animated expanding pulse ring */}
+                <circle r={outerR + 4} fill="none" stroke={color} strokeWidth={0.7} opacity={0}>
+                    <animate attributeName="r" from={outerR} to={outerR + 10} dur={animDur} repeatCount="indefinite" />
+                    <animate attributeName="opacity" from="0.5" to="0" dur={animDur} repeatCount="indefinite" />
+                </circle>
+                {/* Hover-flash outer ring */}
+                <circle r={outerR + 4} fill="none" stroke={color} strokeWidth={0.8} opacity={isHovered ? 0.55 : 0} style={{ transition: 'opacity 0.2s' }} />
+                {/* Static outer ring */}
                 <circle r={outerR} fill="none" stroke={color} strokeWidth={1.2} opacity={0.7} />
                 {/* Core */}
                 <circle r={innerR} fill={color} opacity={0.9} />
@@ -895,25 +1124,32 @@ export function OperationsMap() {
     const [uniHover,         setUniHover]         = useState<UniverseHoverState | null>(null);
     const [entityHover,      setEntityHover]      = useState<EntityHoverState | null>(null);
     const [pinsLoading,      setPinsLoading]      = useState(false);
+    const [recentEntities,   setRecentEntities]   = useState<ApiEntitySummary[]>([]);
+    const [recentEvents,     setRecentEvents]     = useState<ApiMapRecentEvent[]>([]);
 
     const uniTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
     const entityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const tipTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Fetch entity pins only when a universe is active (not on the selector screen)
+    // Single fetch: pins + recently-edited entities + recent events
     useEffect(() => {
         if (!currentUniverse) {
             setEntityPins([]);
+            setRecentEntities([]);
+            setRecentEvents([]);
             return;
         }
         let cancelled = false;
         setPinsLoading(true);
         setEntityPins([]);
-        api.fetchEntityLocations(currentUniverse.id)
-            .catch(() => ({ data: [] as ApiEntityLocation[] }))
-            .then((r) => {
+        setRecentEntities([]);
+        setRecentEvents([]);
+
+        api.fetchMapData(currentUniverse.id)
+            .catch(() => ({ pins: [], recent_entities: [], recent_events: [] }))
+            .then((data) => {
                 if (cancelled) return;
-                const pins: EntityPin[] = r.data.map((e) => ({
+                const pins: EntityPin[] = data.pins.map((e) => ({
                     id:               e.id,
                     universeId:       currentUniverse.id,
                     name:             e.name,
@@ -926,22 +1162,25 @@ export function OperationsMap() {
                     coordinates:      [e.longitude, e.latitude] as [number, number],
                 }));
                 setEntityPins(pins);
+                setRecentEntities(data.recent_entities);
+                setRecentEvents(data.recent_events);
                 setPinsLoading(false);
             });
+
         return () => { cancelled = true; };
     }, [currentUniverse]);
 
-    const { markers: uMarkers, connections } = buildUniverseMarkers(visibleUniverses);
+    const { markers: uMarkers } = buildUniverseMarkers(visibleUniverses);
     const universeById = new Map(visibleUniverses.map((u) => [u.id, u]));
 
-    // Timer helpers 
+    // Timer helpers
     const clearTimers = () => {
         if (uniTimerRef.current)    clearTimeout(uniTimerRef.current);
         if (entityTimerRef.current) clearTimeout(entityTimerRef.current);
         if (tipTimerRef.current)    clearTimeout(tipTimerRef.current);
     };
 
-    // Universe marker handlers 
+    // Universe marker handlers
     const handleUniEnter = (marker: UniverseMarker, e: React.MouseEvent) => {
         clearTimers();
         const universe = universeById.get(marker.universeId);
@@ -962,7 +1201,7 @@ export function OperationsMap() {
         router.visit(`/archives/${marker.slug}`);
     };
 
-    // Entity pin handlers 
+    // Entity pin handlers
     const handlePinEnter = (pin: EntityPin, e: React.MouseEvent) => {
         clearTimers();
         setUniHover(null);
@@ -976,10 +1215,8 @@ export function OperationsMap() {
         openWindow({
             type:  'entity-dossier',
             title: pin.name,
-            // props: { entityId: pin.id, universeId: pin.universeId, key: pin.slug },
-            
             props: {
-                key: `entity-${pin.universeId}-${pin.slug}`,
+                key:        `entity-${pin.universeId}-${pin.slug}`,
                 universeId: pin.universeId,
                 entitySlug: pin.slug,
             },
@@ -1003,10 +1240,25 @@ export function OperationsMap() {
             type: 'entity-dossier',
             title: item.name,
             props: {
-                key: `entity-${item.universeId}-${item.slug}`,
+                key:        `entity-${item.universeId}-${item.slug}`,
                 universeId: item.universeId,
                 entitySlug: item.slug,
             },
+        });
+    };
+    const handleOpenDossierBySlug = (slug: string, name: string, universeId: number) => {
+        openWindow({
+            type: 'entity-dossier',
+            title: name,
+            props: { key: `entity-${universeId}-${slug}`, universeId, entitySlug: slug },
+        });
+    };
+    const handleOpenTimeline = (timelineId: number, timelineName: string, universeId: number) => {
+        openWindow({
+            type:  'timeline',
+            title: timelineName,
+            icon:  'TL',
+            props: { universeId, timelineId },
         });
     };
     const handleViewAllPinned = () => {
@@ -1019,10 +1271,21 @@ export function OperationsMap() {
     return (
         <div className="relative w-full h-full overflow-hidden select-none" style={{ background: '#f0f4fa' }}>
 
+            {/* Corner bracket atmosphere overlay */}
+            <CornerBrackets />
+
+            {/* Scanline texture overlay */}
+            {/* <div
+                className="absolute inset-0 z-10 pointer-events-none"
+                style={{
+                    backgroundImage: 'repeating-linear-gradient(transparent 0px, transparent 3px, rgba(0,0,0,0.018) 3px, rgba(0,0,0,0.018) 4px)',
+                }}
+            /> */}
+
             {/* Brand identity block */}
             <BrandBlock />
 
-            {/*  Right HUD column  */}
+            {/* Right HUD column */}
             <div className="absolute right-5 top-8 z-20 w-52 flex flex-col gap-2 pointer-events-none">
                 <OperatorPanel user={user} onLogin={handleOpenLogin} />
                 {currentUniverse && recentHistory.length > 0 && (
@@ -1033,9 +1296,16 @@ export function OperationsMap() {
                         />
                     </div>
                 )}
+                {currentUniverse && recentEntities.length > 0 && (
+                    <IntelUpdatesPanel
+                        entities={recentEntities}
+                        onOpenDossier={handleOpenDossierBySlug}
+                        universeId={currentUniverse.id}
+                    />
+                )}
             </div>
 
-            {/*  Pinned assets panel (bottom-right)  */}
+            {/* Pinned assets panel (bottom-right) */}
             {currentUniverse && pinned.length > 0 && (
                 <div className="absolute right-5 bottom-12 z-20 w-52 pointer-events-auto">
                     <PinnedAssetsPanel
@@ -1046,17 +1316,38 @@ export function OperationsMap() {
                 </div>
             )}
 
-            {/* Field map legend */}
-            {currentUniverse && <MapLegend entityPinCount={entityPins.length} universeCount={universes.length} />}
+            {/* Left HUD column - stacks upward from bottom-12 */}
+            {currentUniverse && (
+                <div className="absolute left-4 bottom-12 z-20 w-48 flex flex-col-reverse gap-2">
+                    {/* Bottom-most: Map legend (pointer-events-none) */}
+                    {/* <MapLegend entityPinCount={entityPins.length} universeCount={universes.length} /> */}
 
-            {/* Quick-access panel */}
-            {currentUniverse && <QuickActions onSearch={handleOpenSearch} onAnalysis={handleOpenAnalysis} onOpenLicenseDisclaimer={handleOpenLicenseDisclaimer} />}
+                    {/* Above legend: Quick access */}
+                    <QuickActions
+                        onSearch={handleOpenSearch}
+                        onAnalysis={handleOpenAnalysis}
+                        onOpenLicenseDisclaimer={handleOpenLicenseDisclaimer}
+                    />
+
+                    {/* Above quick access: Recent events feed */}
+                    {recentEvents.length > 0 && (
+                        <RecentEventsPanel
+                            events={recentEvents}
+                            universeId={currentUniverse.id}
+                            onOpenTimeline={handleOpenTimeline}
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Signal acquisition indicator */}
             <LoadingIndicator pinsLoading={pinsLoading} />
 
             {/* World map */}
-            <div className="absolute inset-0">
+            <div
+                className="absolute inset-0"
+                style={currentUniverse ? { filter: 'hue-rotate(5deg) saturate(0.88) brightness(0.97)' } : undefined}
+            >
                 <ComposableMap
                     projection="geoNaturalEarth1"
                     projectionConfig={{ scale: 190, center: [15, 15] }}
@@ -1067,12 +1358,10 @@ export function OperationsMap() {
                             geographies
                                 .filter((geo: any) => geo.id !== '010')
                                 .map((geo: any) => (
-                                    // no country borders, just landmasses
                                     <Geography
                                         key={geo.rsmKey}
                                         geography={geo}
                                         fill="#dde4ef"
-                                        // stroke="#c4cee0"
                                         strokeWidth={0.4}
                                         style={{
                                             default: { outline: 'none' },
@@ -1084,10 +1373,7 @@ export function OperationsMap() {
                         }
                     </Geographies>
 
-                    {/* Connection lines between universe markers */}
-                    {/* <ConnectionLines markers={uMarkers} connections={connections} /> */}
-
-                    {/* Entity location pins  below universe markers */}
+                    {/* Entity location pins - below universe markers */}
                     {currentUniverse && entityPins.map((pin) => (
                         <EntityPinDot
                             key={`epin-${pin.id}`}
@@ -1099,7 +1385,7 @@ export function OperationsMap() {
                         />
                     ))}
 
-                    {/* Universe theater markers  above entity pins */}
+                    {/* Universe theater markers - above entity pins */}
                     {uMarkers.map((m) => (
                         <UniverseMarkerDot
                             key={m.id}
@@ -1113,27 +1399,14 @@ export function OperationsMap() {
                 </ComposableMap>
             </div>
 
-            {/* Vignette  subtle dark-edge depth */}
+            {/* Vignette - subtle dark-edge depth */}
             <div
                 className="absolute inset-0 z-10 pointer-events-none"
                 style={{ background: 'radial-gradient(ellipse at center, transparent 45%, rgba(15,23,42,0.18) 100%)' }}
             />
 
-            {/* Subtle grid overlay  dark tints visible on light background */}
-            {/* <div
-                className="absolute inset-0 z-0 pointer-events-none"
-                style={{
-                    backgroundImage: `
-                    linear-gradient(rgba(15,23,42,0.03) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(15,23,42,0.03) 1px, transparent 1px),
-                    radial-gradient(rgba(37,99,235,0.055) 1px, transparent 0)
-                    `,
-                    backgroundSize: '80px 80px, 80px 80px, 20px 20px',
-                    backgroundPosition: '-0.5px -0.5px, -0.5px -0.5px, 0 0'
-                }}
-            /> */}
             {/* Status bar */}
-            <StatusBar markerCount={uMarkers.length} universeCount={universes.length} entityPinCount={entityPins.length} />
+            <StatusBar markerCount={uMarkers.length} universeCount={universes.length} entityPinCount={entityPins.length} onLicenseDisclaimer={handleOpenLicenseDisclaimer} />
 
             {/* Universe tooltip (hoverable) */}
             {uniHover && (

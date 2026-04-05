@@ -14,6 +14,7 @@ class EntityIntelligenceRecordResource extends JsonResource
             'entity_id'                   => $this->entity_id,
             'observer_entity_id'          => $this->observer_entity_id,
             'subject_entity_id'           => $this->subject_entity_id,
+            'timeline_event_id'           => $this->timeline_event_id,
             'observer'                    => new EntitySummaryResource($this->whenLoaded('observer')),
             'subject'                     => new EntitySummaryResource($this->whenLoaded('subject')),
             'classification'              => $this->classification,

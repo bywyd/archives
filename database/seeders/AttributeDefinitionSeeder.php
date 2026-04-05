@@ -188,9 +188,14 @@ class AttributeDefinitionSeeder extends Seeder
         // Event attributes
         $eventType = MetaEntityType::where('slug', 'event')->first();
         $eventAttrs = [
+            ['name' => 'Event Type',   'slug' => 'event-type',   'data_type' => 'string', 'group_name' => 'Overview', 'is_filterable' => true, 'sort_order' => -3],
+            ['name' => 'Year',         'slug' => 'year',         'data_type' => 'string', 'group_name' => 'Overview', 'is_filterable' => true, 'sort_order' => -2],
+            ['name' => 'Time',         'slug' => 'time',         'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => -1],
+            ['name' => 'Phase', 'slug' => 'phase', 'data_type' => 'string', 'group_name' => 'Overview', 'is_filterable' => true, 'sort_order' => 0],
             ['name' => 'Date', 'slug' => 'date', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 1],
             ['name' => 'Duration', 'slug' => 'duration', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 2],
             ['name' => 'Location', 'slug' => 'location', 'data_type' => 'string', 'group_name' => 'Overview', 'sort_order' => 3],
+            ['name' => 'Threat Level', 'slug' => 'threat-level', 'data_type' => 'string', 'group_name' => 'Result', 'is_filterable' => true, 'sort_order' => 9],
             ['name' => 'Outcome', 'slug' => 'outcome', 'data_type' => 'string', 'group_name' => 'Result', 'sort_order' => 10],
             ['name' => 'Casualties', 'slug' => 'casualties', 'data_type' => 'string', 'group_name' => 'Result', 'sort_order' => 11],
             ['name' => 'Significance', 'slug' => 'significance', 'data_type' => 'string', 'group_name' => 'Result', 'is_filterable' => true, 'sort_order' => 12],

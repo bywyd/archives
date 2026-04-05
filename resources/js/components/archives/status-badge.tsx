@@ -15,7 +15,7 @@ export function StatusBadge({ status, size = 'sm' }: Props) {
         <span
             data-status={status.slug}
             className={cn(
-                'inline-flex items-center gap-1 rounded-full font-medium uppercase tracking-wider',
+                'inline-flex items-center gap-1 rounded-none font-medium uppercase tracking-wider',
                 size === 'sm' ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]',
             )}
             style={{
