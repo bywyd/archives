@@ -17,12 +17,24 @@ import {
     X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapContainer, ImageOverlay, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, ImageOverlay, Marker, Polygon, Tooltip as LeafletTooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { cn } from '@/lib/utils';
 import * as api from '@/lib/api';
 import { EntityPicker } from '@/components/archives/entity-picker';
 import { ImageUploader } from '@/components/archives/image-uploader';
+import {
+    MARKER_TYPES,
+    REGION_TYPES,
+    MARKER_COLORS,
+    REGION_COLORS,
+    createEditorMarkerIcon,
+    pctToLatLng,
+    latLngToPct,
+    regionPointsToLatLngs,
+    getEntityProfileUrl,
+    floorLabel,
+} from '@/lib/map-utils';
 import type {
     ApiEntityMap,
     ApiEntityMapFloor,
@@ -31,34 +43,7 @@ import type {
     ApiImage,
 } from '@/types/api';
 
-//  Same coordinate helpers as viewer 
-function pctToLatLng(xPct: number, yPct: number, bounds: L.LatLngBoundsExpression): L.LatLng {
-    const b = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds as L.LatLngBoundsLiteral);
-    const lat = b.getSouth() + (1 - yPct / 100) * (b.getNorth() - b.getSouth());
-    const lng = b.getWest() + (xPct / 100) * (b.getEast() - b.getWest());
-    return L.latLng(lat, lng);
-}
-
-function latLngToPct(latlng: L.LatLng, bounds: L.LatLngBoundsExpression): { x: number; y: number } {
-    const b = bounds instanceof L.LatLngBounds ? bounds : L.latLngBounds(bounds as L.LatLngBoundsLiteral);
-    const x = ((latlng.lng - b.getWest()) / (b.getEast() - b.getWest())) * 100;
-    const y = (1 - (latlng.lat - b.getSouth()) / (b.getNorth() - b.getSouth())) * 100;
-    return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
-}
-
-function regionPointsToLatLngs(points: { x: number; y: number }[], bounds: L.LatLngBoundsExpression): L.LatLng[] {
-    return points.map((p) => pctToLatLng(p.x, p.y, bounds));
-}
-
-const MARKER_TYPES = [
-    'poi', 'item', 'character', 'event', 'entrance', 'exit',
-    'save-point', 'boss', 'note', 'threat', 'objective', 'secret', 'safe-room', 'custom',
-] as const;
-const REGION_TYPES = [
-    'room', 'zone', 'corridor', 'outdoor', 'restricted', 'safe',
-    'boss-arena', 'containment', 'lab', 'storage', 'utility', 'exterior', 'safe-room', 'custom',
-] as const;
-
+// Color presets for the palette picker
 const COLOR_PRESETS = [
     '#3b82f6', '#60a5fa', '#34d399', '#10b981',
     '#f59e0b', '#fbbf24', '#f87171', '#ef4444',
@@ -66,30 +51,9 @@ const COLOR_PRESETS = [
     '#1e293b', '#64748b', '#e2e8f0', '#ffffff',
 ] as const;
 
-const MARKER_COLORS: Record<string, string> = {
-    poi: '#60a5fa', item: '#fbbf24', character: '#34d399', event: '#f87171',
-    entrance: '#818cf8', exit: '#fb923c', 'save-point': '#22d3ee', boss: '#ef4444',
-    note: '#a78bfa', threat: '#dc2626', objective: '#6366f1', secret: '#a855f7',
-    'safe-room': '#4ade80', custom: '#94a3b8',
-};
-
-function createEditorMarkerIcon(type: string, active: boolean): L.DivIcon {
-    const color = MARKER_COLORS[type] || MARKER_COLORS.poi;
-    return L.divIcon({
-        className: 'arc-map-marker',
-        html: `<div style="
-            width: ${active ? 16 : 12}px; height: ${active ? 16 : 12}px; border-radius: 50%;
-            background: ${color}; border: 2px solid ${active ? '#fff' : 'rgba(0,0,0,0.6)'};
-            box-shadow: 0 0 ${active ? 10 : 6}px ${color}80;
-        " />`,
-        iconSize: [active ? 16 : 12, active ? 16 : 12],
-        iconAnchor: [active ? 8 : 6, active ? 8 : 6],
-    });
-}
-
 type EditorMode = 'select' | 'place-marker' | 'draw-region';
 
-//  Color swatch picker 
+// Color swatch picker
 function ColorPalette({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
     return (
         <div className="space-y-1.5">
@@ -118,6 +82,50 @@ function ColorPalette({ value, onChange }: { value: string; onChange: (hex: stri
                 placeholder="#hex or leave blank for auto"
             />
         </div>
+    );
+}
+
+// Inline confirm button
+function ConfirmButton({
+    onConfirm,
+    label,
+    confirmLabel,
+    className,
+    icon,
+}: {
+    onConfirm: () => void;
+    label: string;
+    confirmLabel: string;
+    className?: string;
+    icon?: React.ReactNode;
+}) {
+    const [confirming, setConfirming] = useState(false);
+
+    useEffect(() => {
+        if (!confirming) return;
+        const t = setTimeout(() => setConfirming(false), 3000);
+        return () => clearTimeout(t);
+    }, [confirming]);
+
+    return (
+        <button
+            className={className}
+            title={confirming ? confirmLabel : label}
+            onClick={() => {
+                if (confirming) {
+                    onConfirm();
+                    setConfirming(false);
+                } else {
+                    setConfirming(true);
+                }
+            }}
+        >
+            {confirming ? (
+                <span className="arc-mono text-[8px] font-bold tracking-wider">{confirmLabel}</span>
+            ) : (
+                icon
+            )}
+        </button>
     );
 }
 
@@ -151,7 +159,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
     // Side panel
     const [panelView, setPanelView] = useState<'floors' | 'marker' | 'region' | 'new-floor' | 'floor-image'>('floors');
 
-    //  Load map data 
+    // Load map data
     useEffect(() => {
         if (!mapId) return;
         setLoading(true);
@@ -191,7 +199,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
             });
     }, [universeId, entityId, mapData?.id]);
 
-    //  Save map metadata 
+    // Save map metadata
     const saveMapMeta = useCallback(async () => {
         setSaving(true);
         try {
@@ -212,7 +220,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
         }
     }, [universeId, entityId, mapData, name, description]);
 
-    //  Floor CRUD 
+    // Floor CRUD
     const addFloor = useCallback(async (floorName: string, floorNumber: number) => {
         if (!mapData) return;
         try {
@@ -235,7 +243,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
         }
     }, [universeId, entityId, mapData, activeFloorId, refreshMap]);
 
-    //  Marker CRUD 
+    // Marker CRUD
     const placeMarker = useCallback(async (xPct: number, yPct: number) => {
         if (!mapData || !activeFloorId) return;
         try {
@@ -278,7 +286,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
         }
     }, [universeId, entityId, mapData, refreshMap]);
 
-    //  Region CRUD 
+    // Region CRUD
     const finishRegion = useCallback(async () => {
         if (!mapData || !activeFloorId || drawingPoints.length < 3) return;
         try {
@@ -321,7 +329,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
         }
     }, [universeId, entityId, mapData, refreshMap]);
 
-    //  Loading state 
+    // Loading state
     if (loading) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-3 bg-[var(--arc-bg)]">
@@ -331,7 +339,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
         );
     }
 
-    //  No map yet → show creation form 
+    // No map yet → creation form
     if (!mapData && !mapId) {
         return (
             <div className="flex h-full flex-col bg-[var(--arc-bg)]">
@@ -380,18 +388,17 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
 
     return (
         <div className="flex h-full flex-col bg-[var(--arc-bg)]">
-            {/*  Header  */}
+            {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b-2 border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] px-3 py-2">
                 <div className="flex items-center gap-2">
                     <Pencil className="size-3.5 text-[var(--arc-accent)]" />
                     <span className="arc-mono text-[10px] font-bold tracking-[0.15em] text-[var(--arc-accent)]">
                         EDIT MAP
                     </span>
-                    <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]"> {mapData?.name}</span>
+                    <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">— {mapData?.name}</span>
                 </div>
 
                 <div className="flex items-center gap-1">
-                    {/* Mode buttons */}
                     <ModeButton
                         active={mode === 'select'}
                         label="SELECT"
@@ -429,7 +436,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
                 </div>
             </div>
 
-            {/*  Body  */}
+            {/* Body */}
             <div className="flex flex-1 overflow-hidden">
                 {/* Side panel */}
                 <div className="flex w-64 shrink-0 flex-col border-r border-[var(--arc-border)] bg-[var(--arc-surface)]">
@@ -451,6 +458,16 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
                         onDeleteRegion={deleteRegion}
                         onSetPanelView={setPanelView}
                         onFloorImagesChange={(_images: ApiImage[]) => refreshMap()}
+                        onSelectMarkerOnMap={(marker) => {
+                            setSelectedMarker(marker);
+                            setSelectedRegion(null);
+                            setPanelView('marker');
+                        }}
+                        onSelectRegionOnMap={(region) => {
+                            setSelectedRegion(region);
+                            setSelectedMarker(null);
+                            setPanelView('region');
+                        }}
                         name={name}
                         description={description}
                         onNameChange={setName}
@@ -497,7 +514,11 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
                                                 }
                                             },
                                         }}
-                                    />
+                                    >
+                                        <LeafletTooltip direction="center" className="arc-map-tooltip" permanent={false}>
+                                            <div className="text-[9px] font-bold">{region.name}</div>
+                                        </LeafletTooltip>
+                                    </Polygon>
                                 ))}
 
                                 {/* Drawing preview */}
@@ -508,29 +529,36 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
                                     />
                                 )}
 
-                                {/* Existing markers (draggable) */}
-                                {activeFloor.markers?.map((marker) => (
-                                    <Marker
-                                        key={marker.id}
-                                        position={pctToLatLng(marker.x_percent, marker.y_percent, imageBounds)}
-                                        icon={createEditorMarkerIcon(marker.marker_type, selectedMarker?.id === marker.id)}
-                                        draggable={mode === 'select'}
-                                        eventHandlers={{
-                                            click: () => {
-                                                if (mode === 'select') {
-                                                    setSelectedMarker(marker);
-                                                    setSelectedRegion(null);
-                                                    setPanelView('marker');
-                                                }
-                                            },
-                                            dragend: (e) => {
-                                                const latlng = (e.target as L.Marker).getLatLng();
-                                                const pct = latLngToPct(latlng, imageBounds);
-                                                updateMarker(marker.id, { x_percent: pct.x, y_percent: pct.y });
-                                            },
-                                        }}
-                                    />
-                                ))}
+                                {/* Existing markers (draggable, teardrop style) */}
+                                {activeFloor.markers?.map((marker) => {
+                                    const profileUrl = getEntityProfileUrl(marker.entity);
+                                    return (
+                                        <Marker
+                                            key={marker.id}
+                                            position={pctToLatLng(marker.x_percent, marker.y_percent, imageBounds)}
+                                            icon={createEditorMarkerIcon(marker.marker_type, selectedMarker?.id === marker.id, profileUrl)}
+                                            draggable={mode === 'select'}
+                                            eventHandlers={{
+                                                click: () => {
+                                                    if (mode === 'select') {
+                                                        setSelectedMarker(marker);
+                                                        setSelectedRegion(null);
+                                                        setPanelView('marker');
+                                                    }
+                                                },
+                                                dragend: (e) => {
+                                                    const latlng = (e.target as L.Marker).getLatLng();
+                                                    const pct = latLngToPct(latlng, imageBounds);
+                                                    updateMarker(marker.id, { x_percent: pct.x, y_percent: pct.y });
+                                                },
+                                            }}
+                                        >
+                                            <LeafletTooltip direction="top" offset={[0, -14]} className="arc-map-tooltip" permanent={false}>
+                                                <div className="text-[9px] font-bold">{marker.name}</div>
+                                            </LeafletTooltip>
+                                        </Marker>
+                                    );
+                                })}
 
                                 {/* Drawing point markers */}
                                 {drawingPoints.map((pt, i) => (
@@ -561,7 +589,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
                                     <div className="arc-map-grid-bg absolute inset-0" />
                                     <div className="relative z-10 text-center">
                                         <ImageIcon className="mx-auto size-7 opacity-20 text-[var(--arc-text-muted)]" />
-                                        <p className="arc-mono mt-1.5 text-[9px] tracking-widest text-[var(--arc-text-muted)]">SCHEMATIC MODE  NO IMAGE</p>
+                                        <p className="arc-mono mt-1.5 text-[9px] tracking-widest text-[var(--arc-text-muted)]">SCHEMATIC MODE - NO IMAGE</p>
                                         <button
                                             className="pointer-events-auto arc-mono mt-2 flex items-center gap-1.5 rounded bg-[var(--arc-accent)] px-3 py-1.5 text-[9px] font-bold tracking-wider text-white hover:bg-[var(--arc-accent)]/80 mx-auto"
                                             onClick={() => setPanelView('floor-image')}
@@ -588,7 +616,7 @@ export function EntityMapEditor({ universeId, entityId, mapId }: Props) {
     );
 }
 
-//  Invalidate Leaflet size on container resize 
+// Invalidate Leaflet size on container resize
 function MapResizeHandler() {
     const map = useMap();
     useEffect(() => {
@@ -600,7 +628,7 @@ function MapResizeHandler() {
     return null;
 }
 
-//  Map click handler 
+// Map click handler
 function EditorMapEvents({
     mode,
     bounds,
@@ -626,7 +654,7 @@ function EditorMapEvents({
     return null;
 }
 
-//  Mode toggle button 
+// Mode toggle button
 function ModeButton({ active, label, disabled, onClick }: { active: boolean; label: string; disabled?: boolean; onClick: () => void }) {
     return (
         <button
@@ -643,7 +671,7 @@ function ModeButton({ active, label, disabled, onClick }: { active: boolean; lab
     );
 }
 
-//  Field group wrapper 
+// Field group wrapper
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <label className="block space-y-1">
@@ -653,7 +681,7 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
     );
 }
 
-//  Side Panel 
+//  Side Panel
 function SidePanel({
     mapData,
     floors,
@@ -672,6 +700,8 @@ function SidePanel({
     onDeleteRegion,
     onSetPanelView,
     onFloorImagesChange,
+    onSelectMarkerOnMap,
+    onSelectRegionOnMap,
     name,
     description,
     onNameChange,
@@ -697,6 +727,8 @@ function SidePanel({
     onDeleteRegion: (id: number) => void;
     onSetPanelView: (view: 'floors' | 'marker' | 'region' | 'new-floor' | 'floor-image') => void;
     onFloorImagesChange: (images: ApiImage[]) => void;
+    onSelectMarkerOnMap: (marker: ApiEntityMapMarker) => void;
+    onSelectRegionOnMap: (region: ApiEntityMapRegion) => void;
     name: string;
     description: string;
     onNameChange: (v: string) => void;
@@ -767,7 +799,8 @@ function SidePanel({
                                 <div>
                                     <span className="arc-mono block text-[9px] font-semibold tracking-wider">{floor.name.toUpperCase()}</span>
                                     <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
-                                        F{floor.floor_number} • {floor.markers?.length ?? 0}M / {floor.regions?.length ?? 0}R
+                                        {floorLabel(floor.floor_number)} • {floor.markers?.length ?? 0}M / {floor.regions?.length ?? 0}R
+                                        {floor.images?.length ? '' : ' • no image'}
                                     </span>
                                 </div>
                             </div>
@@ -783,19 +816,27 @@ function SidePanel({
                                 >
                                     <ImageIcon className="size-3" />
                                 </button>
-                                <button
+                                <ConfirmButton
+                                    onConfirm={() => onDeleteFloor(floor.id)}
+                                    label="Delete floor"
+                                    confirmLabel="CONFIRM?"
                                     className="rounded p-0.5 text-[var(--arc-text-muted)] hover:bg-[var(--arc-danger)]/10 hover:text-[var(--arc-danger)]"
-                                    title="Delete floor"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDeleteFloor(floor.id);
-                                    }}
-                                >
-                                    <Trash2 className="size-3" />
-                                </button>
+                                    icon={<Trash2 className="size-3" />}
+                                />
                             </div>
                         </button>
                     ))}
+
+                    {/* Marker/region list for active floor */}
+                    {activeFloor && (
+                        <FloorItemsList
+                            floor={activeFloor}
+                            selectedMarkerId={selectedMarker?.id ?? null}
+                            selectedRegionId={selectedRegion?.id ?? null}
+                            onSelectMarker={onSelectMarkerOnMap}
+                            onSelectRegion={onSelectRegionOnMap}
+                        />
+                    )}
                 </div>
             )}
 
@@ -846,7 +887,7 @@ function SidePanel({
                         </button>
                     </div>
                     <div className="arc-mono rounded border border-[var(--arc-border)] px-2 py-1 text-[9px] text-[var(--arc-text-muted)]">
-                        {activeFloor.name.toUpperCase()}  F{activeFloor.floor_number}
+                        {activeFloor.name.toUpperCase()} — {floorLabel(activeFloor.floor_number)}
                     </div>
                     <p className="text-[9px] text-[var(--arc-text-muted)]">
                         The first image will be used as the floor plan overlay. Recommended: use a top-down map image.
@@ -863,7 +904,107 @@ function SidePanel({
     );
 }
 
-//  New Floor Form 
+//  Floor items list (compact marker/region list for quick selection)
+function FloorItemsList({
+    floor,
+    selectedMarkerId,
+    selectedRegionId,
+    onSelectMarker,
+    onSelectRegion,
+}: {
+    floor: ApiEntityMapFloor;
+    selectedMarkerId: number | null;
+    selectedRegionId: number | null;
+    onSelectMarker: (marker: ApiEntityMapMarker) => void;
+    onSelectRegion: (region: ApiEntityMapRegion) => void;
+}) {
+    const markers = floor.markers ?? [];
+    const regions = floor.regions ?? [];
+    if (markers.length === 0 && regions.length === 0) return null;
+
+    return (
+        <div className="mt-2 border-t border-[var(--arc-border)] pt-2">
+            <span className="arc-mono px-1 text-[8px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
+                ITEMS ON THIS FLOOR
+            </span>
+
+            {/* Markers */}
+            {markers.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                    {markers.map((marker) => {
+                        const profileUrl = getEntityProfileUrl(marker.entity);
+                        const color = marker.color || MARKER_COLORS[marker.marker_type] || '#94a3b8';
+                        return (
+                            <button
+                                key={`m-${marker.id}`}
+                                className={cn(
+                                    'flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition-colors',
+                                    selectedMarkerId === marker.id
+                                        ? 'bg-[var(--arc-accent)]/10 text-[var(--arc-accent)]'
+                                        : 'text-[var(--arc-text)] hover:bg-[var(--arc-surface-alt)]',
+                                )}
+                                onClick={() => onSelectMarker(marker)}
+                            >
+                                {profileUrl ? (
+                                    <img
+                                        src={profileUrl}
+                                        alt=""
+                                        className="size-4 shrink-0 rounded-full border border-[var(--arc-border)] object-cover"
+                                    />
+                                ) : (
+                                    <div
+                                        className="size-3 shrink-0 rounded-full border border-[rgba(0,0,0,0.12)]"
+                                        style={{ background: color }}
+                                    />
+                                )}
+                                <span className="arc-mono flex-1 truncate text-[8px] font-semibold tracking-wider">
+                                    {marker.name.toUpperCase()}
+                                </span>
+                                <span className="arc-mono text-[7px] text-[var(--arc-text-muted)]">
+                                    {marker.marker_type.replace(/-/g, ' ').slice(0, 4).toUpperCase()}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Regions */}
+            {regions.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                    {regions.map((region) => {
+                        const color = region.color || REGION_COLORS[region.region_type] || '#94a3b8';
+                        return (
+                            <button
+                                key={`r-${region.id}`}
+                                className={cn(
+                                    'flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition-colors',
+                                    selectedRegionId === region.id
+                                        ? 'bg-[var(--arc-accent)]/10 text-[var(--arc-accent)]'
+                                        : 'text-[var(--arc-text)] hover:bg-[var(--arc-surface-alt)]',
+                                )}
+                                onClick={() => onSelectRegion(region)}
+                            >
+                                <div
+                                    className="size-3 shrink-0 rounded-sm border border-[rgba(0,0,0,0.12)]"
+                                    style={{ background: color + '66' }}
+                                />
+                                <span className="arc-mono flex-1 truncate text-[8px] font-semibold tracking-wider">
+                                    {region.name.toUpperCase()}
+                                </span>
+                                <span className="arc-mono text-[7px] text-[var(--arc-text-muted)]">
+                                    {region.region_type.replace(/-/g, ' ').slice(0, 4).toUpperCase()}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+//  New Floor Form
 function NewFloorForm({ nextNumber, onAdd, onCancel }: { nextNumber: number; onAdd: (name: string, num: number) => void; onCancel: () => void }) {
     const [floorName, setFloorName] = useState('');
     const [floorNumber, setFloorNumber] = useState(nextNumber);
@@ -894,7 +1035,7 @@ function NewFloorForm({ nextNumber, onAdd, onCancel }: { nextNumber: number; onA
     );
 }
 
-//  Marker Editor 
+//  Marker Editor
 function MarkerEditor({
     marker,
     universeId,
@@ -922,10 +1063,18 @@ function MarkerEditor({
         setEntityId(marker.entity_id ?? null);
     }, [marker]);
 
+    const profileUrl = getEntityProfileUrl(marker.entity);
+
     return (
         <div className="flex-1 space-y-3 overflow-y-auto p-3">
             <div className="flex items-center justify-between">
-                <span className="arc-mono text-[9px] font-bold tracking-[0.2em] text-[var(--arc-accent)]">EDIT MARKER</span>
+                <div className="flex items-center gap-2">
+                    {/* Live preview of the marker pin */}
+                    {profileUrl && (
+                        <img src={profileUrl} alt="" className="size-6 rounded-full border border-[var(--arc-border)] object-cover" />
+                    )}
+                    <span className="arc-mono text-[9px] font-bold tracking-[0.2em] text-[var(--arc-accent)]">EDIT MARKER</span>
+                </div>
                 <button className="text-[var(--arc-text-muted)] hover:text-[var(--arc-text)]" onClick={onClose}>
                     <X className="size-3.5" />
                 </button>
@@ -955,7 +1104,7 @@ function MarkerEditor({
                 <ColorPalette value={markerColor} onChange={setMarkerColor} />
             </FieldGroup>
             <div className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
-                Position: ({marker.x_percent.toFixed(1)}%, {marker.y_percent.toFixed(1)}%)  drag pin to reposition
+                Position: ({marker.x_percent.toFixed(1)}%, {marker.y_percent.toFixed(1)}%) — drag pin to reposition
             </div>
             <div className="flex items-center gap-2 pt-1">
                 <button
@@ -964,19 +1113,19 @@ function MarkerEditor({
                 >
                     <Save className="size-3" /> SAVE
                 </button>
-                <button
+                <ConfirmButton
+                    onConfirm={() => onDelete(marker.id)}
+                    label="Delete marker"
+                    confirmLabel="DELETE?"
                     className="flex items-center justify-center rounded bg-[var(--arc-danger)]/10 p-1.5 text-[var(--arc-danger)] hover:bg-[var(--arc-danger)]/20"
-                    title="Delete marker"
-                    onClick={() => onDelete(marker.id)}
-                >
-                    <Trash2 className="size-3" />
-                </button>
+                    icon={<Trash2 className="size-3" />}
+                />
             </div>
         </div>
     );
 }
 
-//  Region Editor 
+//  Region Editor
 function RegionEditor({
     region,
     universeId,
@@ -1062,13 +1211,13 @@ function RegionEditor({
                 >
                     <Save className="size-3" /> SAVE
                 </button>
-                <button
+                <ConfirmButton
+                    onConfirm={() => onDelete(region.id)}
+                    label="Delete region"
+                    confirmLabel="DELETE?"
                     className="flex items-center justify-center rounded bg-[var(--arc-danger)]/10 p-1.5 text-[var(--arc-danger)] hover:bg-[var(--arc-danger)]/20"
-                    title="Delete region"
-                    onClick={() => onDelete(region.id)}
-                >
-                    <Trash2 className="size-3" />
-                </button>
+                    icon={<Trash2 className="size-3" />}
+                />
             </div>
         </div>
     );

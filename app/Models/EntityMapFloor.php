@@ -37,6 +37,7 @@ class EntityMapFloor extends Model
             if ($model->entity_id) {
                 // Flush this map entity's own show cache.
                 Cache::forget("entities:{$model->entity_id}:show");
+                Cache::forget("entities:{$model->entity_id}:map");
 
                 // Also flush any parent entity that has a has-map relation pointing to this map entity.
                 $hasMapTypeId = \App\Models\MetaEntityRelationType::where('slug', 'has-map')->value('id');
@@ -53,6 +54,7 @@ class EntityMapFloor extends Model
         };
 
         static::saved($flush);
+        static::updated($flush);
         static::deleted($flush);
     }
 

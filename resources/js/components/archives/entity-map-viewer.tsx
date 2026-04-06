@@ -1,7 +1,11 @@
 import {
     AlertCircle,
+    ArrowRight,
+    ChevronLeft,
     Edit,
     ExternalLink,
+    Eye,
+    EyeOff,
     Layers,
     Loader2,
     MapPin,
@@ -12,119 +16,32 @@ import {
     ZoomOut,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ImageOverlay, MapContainer, Marker, Polygon, useMap, useMapEvents } from 'react-leaflet';
+import { ImageOverlay, MapContainer, Marker, Polygon, Tooltip as LeafletTooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { cn } from '@/lib/utils';
 import * as api from '@/lib/api';
+import {
+    MARKER_COLORS,
+    REGION_COLORS,
+    MARKER_GLYPHS,
+    createMarkerPin,
+    pctToLatLng,
+    regionPointsToLatLngs,
+    getEntityProfileUrl,
+    floorLabel,
+    floorLabelLong,
+} from '@/lib/map-utils';
+import { StatusBadge } from '@/components/archives/status-badge';
+import { TypeIcon } from '@/components/archives/type-icon';
 import { useWindowStore } from '@/stores/window-store';
-import type { ApiEntityMap, ApiEntityMapMarker, ApiEntityMapRegion } from '@/types/api';
-
-//  Type → glyph 
-const MARKER_GLYPHS: Record<string, string> = {
-    poi: '●',
-    character: 'P',
-    item: '◆',
-    event: '!',
-    entrance: '▶',
-    exit: '◀',
-    'save-point': '✦',
-    boss: '★',
-    note: '?',
-    threat: '▲',
-    objective: '⊕',
-    secret: '◇',
-    'safe-room': 'S',
-    custom: '·',
-};
-
-//  Type → default color 
-const MARKER_COLORS: Record<string, string> = {
-    poi: '#60a5fa',
-    item: '#fbbf24',
-    character: '#34d399',
-    event: '#f87171',
-    entrance: '#818cf8',
-    exit: '#fb923c',
-    'save-point': '#22d3ee',
-    boss: '#ef4444',
-    note: '#a78bfa',
-    threat: '#dc2626',
-    objective: '#6366f1',
-    secret: '#a855f7',
-    'safe-room': '#4ade80',
-    custom: '#94a3b8',
-};
-
-const REGION_COLORS: Record<string, string> = {
-    room: '#60a5fa',
-    zone: '#34d399',
-    corridor: '#a78bfa',
-    outdoor: '#22d3ee',
-    restricted: '#ef4444',
-    safe: '#4ade80',
-    'boss-arena': '#f87171',
-    containment: '#7c3aed',
-    lab: '#0d9488',
-    storage: '#d97706',
-    utility: '#9a3412',
-    exterior: '#6b7280',
-    'safe-room': '#4ade80',
-    custom: '#94a3b8',
-};
-
-//  SVG teardrop pin factory 
-function makeTeardropPath(cx: number, cy: number, r: number, tipY: number): string {
-    return [
-        `M${cx} ${cy - r}`,
-        `A${r} ${r} 0 0 1 ${cx + r} ${cy}`,
-        `C${cx + r} ${cy + r * 0.9},${cx + r * 0.4} ${tipY - 4},${cx} ${tipY}`,
-        `C${cx - r * 0.4} ${tipY - 4},${cx - r} ${cy + r * 0.9},${cx - r} ${cy}`,
-        `A${r} ${r} 0 0 1 ${cx} ${cy - r} Z`,
-    ].join(' ');
-}
-
-function createMarkerPin(color: string, markerType: string, selected: boolean): L.DivIcon {
-    const size = selected ? 26 : 22;
-    const r = size / 2 - 1;
-    const cx = size / 2;
-    const height = Math.round(size * 1.4);
-    const tipY = height - 1;
-    const innerR = Math.round(r * 0.44);
-    const fontSize = Math.max(6, Math.round(r * 0.48));
-    const rawGlyph = MARKER_GLYPHS[markerType] || '●';
-    const glyph = rawGlyph.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const strokeColor = selected ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.28)';
-    const strokeWidth = selected ? '2' : '1.5';
-    const shadowStr = `drop-shadow(0 ${selected ? '3px 8px' : '1px 4px'} ${color}55)`;
-
-    const svg = [
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${height}" viewBox="0 0 ${size} ${height}">`,
-        `<path d="${makeTeardropPath(cx, cx, r, tipY)}" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>`,
-        `<circle cx="${cx}" cy="${cx}" r="${innerR}" fill="rgba(0,0,0,0.22)"/>`,
-        `<text x="${cx}" y="${cx + fontSize * 0.4}" font-size="${fontSize}" text-anchor="middle"`,
-        ` fill="rgba(255,255,255,0.95)" font-family="monospace" font-weight="bold">${glyph}</text>`,
-        `</svg>`,
-    ].join('');
-
-    return L.divIcon({
-        className: 'arc-map-pin',
-        html: `<div style="filter:${shadowStr}">${svg}</div>`,
-        iconSize: [size, height],
-        iconAnchor: [cx, tipY],
-    });
-}
-
-//  Coordinate helpers 
-function pctToLatLng(xPct: number, yPct: number, bounds: L.LatLngBoundsExpression): L.LatLng {
-    const b = L.latLngBounds(bounds as L.LatLngBoundsLiteral);
-    const lat = b.getSouth() + (1 - yPct / 100) * (b.getNorth() - b.getSouth());
-    const lng = b.getWest() + (xPct / 100) * (b.getEast() - b.getWest());
-    return L.latLng(lat, lng);
-}
-
-function regionPointsToLatLngs(points: { x: number; y: number }[], bounds: L.LatLngBoundsExpression): L.LatLng[] {
-    return points.map((p) => pctToLatLng(p.x, p.y, bounds));
-}
+import type {
+    ApiEntityMap,
+    ApiEntityMapFloor,
+    ApiEntityMapMarker,
+    ApiEntityMapRegion,
+    ApiEntityRelation,
+    ApiEntitySummary,
+} from '@/types/api';
 
 //  Map controls 
 function MapControls({ imageBounds }: { imageBounds: L.LatLngBoundsExpression }) {
@@ -160,7 +77,6 @@ function BgClickHandler({ onBgClick }: { onBgClick: () => void }) {
     return null;
 }
 
-//  Invalidate Leaflet size on container resize 
 function MapResizeHandler() {
     const map = useMap();
     useEffect(() => {
@@ -181,13 +97,13 @@ type Props = {
     universeId: number;
     entityId: number;
     mapId: number | string;
-    /** Wiki-mode: navigate to entity wiki page instead of opening a dossier window. */
     onEntityNavigate?: (slug: string) => void;
-    /** Wiki-mode: replace the EDIT window button with a link pointing here. */
     editLinkHref?: string;
 };
 
-//  Main component 
+// ══════════════════════════════════════════════════════════════════════
+//  Main component
+// ══════════════════════════════════════════════════════════════════════
 export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate, editLinkHref }: Props) {
     const [mapData, setMapData] = useState<ApiEntityMap | null>(null);
     const [loading, setLoading] = useState(true);
@@ -195,6 +111,9 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
     const [activeFloorId, setActiveFloorId] = useState<number | null>(null);
     const [visibleLayers, setVisibleLayers] = useState({ markers: true, regions: true });
     const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+    const [legendOpen, setLegendOpen] = useState(false);
+    const [hiddenMarkerTypes, setHiddenMarkerTypes] = useState<Set<string>>(new Set());
+    const [hiddenRegionTypes, setHiddenRegionTypes] = useState<Set<string>>(new Set());
     const { openWindow } = useWindowStore();
 
     useEffect(() => {
@@ -238,10 +157,46 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
         return [[0, 0], [h, w]];
     }, [activeFloor]);
 
-    // Floors sorted ascending by floor_number (B2 → ... → GF → 1F → ...)
     const sortedFloors = useMemo(
         () => [...(mapData?.floors ?? [])].sort((a, b) => a.floor_number - b.floor_number),
         [mapData],
+    );
+
+    // Build a map of entity_id → markers on this floor for cross-referencing
+    const floorEntityMarkerMap = useMemo(() => {
+        const m = new Map<number, ApiEntityMapMarker>();
+        activeFloor?.markers?.forEach((marker) => {
+            if (marker.entity_id) m.set(marker.entity_id, marker);
+        });
+        return m;
+    }, [activeFloor]);
+
+    // Compute type counts for the legend
+    const markerTypeCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        activeFloor?.markers?.forEach((m) => {
+            counts.set(m.marker_type, (counts.get(m.marker_type) || 0) + 1);
+        });
+        return counts;
+    }, [activeFloor]);
+
+    const regionTypeCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        activeFloor?.regions?.forEach((r) => {
+            counts.set(r.region_type, (counts.get(r.region_type) || 0) + 1);
+        });
+        return counts;
+    }, [activeFloor]);
+
+    // Filtered markers/regions based on type visibility
+    const visibleMarkers = useMemo(
+        () => activeFloor?.markers?.filter((m) => !hiddenMarkerTypes.has(m.marker_type)) ?? [],
+        [activeFloor, hiddenMarkerTypes],
+    );
+
+    const visibleRegions = useMemo(
+        () => activeFloor?.regions?.filter((r) => !hiddenRegionTypes.has(r.region_type)) ?? [],
+        [activeFloor, hiddenRegionTypes],
     );
 
     const handleEntityClick = useCallback(
@@ -282,6 +237,34 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
     const handleFloorChange = useCallback((id: number) => {
         setActiveFloorId(id);
         setSelectedItem(null);
+        setHiddenMarkerTypes(new Set());
+        setHiddenRegionTypes(new Set());
+    }, []);
+
+    const handleSelectMarkerById = useCallback(
+        (entityId: number) => {
+            const marker = activeFloor?.markers?.find((m) => m.entity_id === entityId);
+            if (marker) setSelectedItem({ type: 'marker', data: marker });
+        },
+        [activeFloor],
+    );
+
+    const toggleMarkerType = useCallback((type: string) => {
+        setHiddenMarkerTypes((prev) => {
+            const next = new Set(prev);
+            if (next.has(type)) next.delete(type);
+            else next.add(type);
+            return next;
+        });
+    }, []);
+
+    const toggleRegionType = useCallback((type: string) => {
+        setHiddenRegionTypes((prev) => {
+            const next = new Set(prev);
+            if (next.has(type)) next.delete(type);
+            else next.add(type);
+            return next;
+        });
     }, []);
 
     //  States 
@@ -357,6 +340,24 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                         <Layers className="size-2.5" />
                         ZONES
                     </button>
+
+                    {/* Legend toggle */}
+                    {(markerCount > 0 || regionCount > 0) && (
+                        <button
+                            className={cn(
+                                'arc-mono flex items-center gap-1 rounded px-2 py-0.5 text-[9px] tracking-wider transition-colors',
+                                legendOpen
+                                    ? 'bg-[var(--arc-accent)]/10 text-[var(--arc-accent)]'
+                                    : 'text-[var(--arc-text-muted)] hover:text-[var(--arc-text)]',
+                            )}
+                            onClick={() => setLegendOpen((v) => !v)}
+                            title="Toggle map legend"
+                        >
+                            {legendOpen ? <EyeOff className="size-2.5" /> : <Eye className="size-2.5" />}
+                            LEGEND
+                        </button>
+                    )}
+
                     {editLinkHref ? (
                         <a
                             href={editLinkHref}
@@ -381,29 +382,50 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                 </div>
             </div>
 
-            {/*  Floor tabs  */}
+            {/*  Floor tabs (enhanced with counts + image indicator)  */}
             {sortedFloors.length > 1 && (
                 <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3 py-1.5">
                     {sortedFloors.map((floor) => {
-                        const label =
-                            floor.floor_number > 0
-                                ? `F${floor.floor_number}`
-                                : floor.floor_number === 0
-                                  ? 'GF'
-                                  : `B${Math.abs(floor.floor_number)}`;
+                        const label = floorLabel(floor.floor_number);
+                        const fMarkers = floor.markers?.length ?? 0;
+                        const fRegions = floor.regions?.length ?? 0;
+                        const hasImage = !!floor.images?.length;
                         return (
                             <button
                                 key={floor.id}
                                 className={cn(
-                                    'arc-mono flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 text-[9px] font-semibold tracking-wider transition-all',
+                                    'arc-mono group relative flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1 text-[9px] font-semibold tracking-wider transition-all',
                                     floor.id === activeFloorId
                                         ? 'bg-[var(--arc-accent)] text-white shadow-sm'
                                         : 'text-[var(--arc-text-muted)] hover:bg-[var(--arc-surface)] hover:text-[var(--arc-text)]',
                                 )}
                                 onClick={() => handleFloorChange(floor.id)}
+                                title={`${floor.name} - ${fMarkers} pins, ${fRegions} zones${hasImage ? '' : ' (no image)'}`}
                             >
+                                {/* Image indicator dot */}
+                                {hasImage && (
+                                    <span
+                                        className={cn(
+                                            'size-1.5 shrink-0 rounded-full',
+                                            floor.id === activeFloorId
+                                                ? 'bg-white/60'
+                                                : 'bg-[var(--arc-accent)]/40',
+                                        )}
+                                    />
+                                )}
                                 <span className="shrink-0 text-[8px] opacity-70">{label}</span>
                                 <span className="max-w-[96px] truncate">{floor.name}</span>
+                                {/* Compact indicator counts */}
+                                {(fMarkers > 0 || fRegions > 0) && (
+                                    <span
+                                        className={cn(
+                                            'ml-0.5 text-[7px] opacity-60',
+                                            floor.id === activeFloorId ? 'text-white/70' : '',
+                                        )}
+                                    >
+                                        {fMarkers > 0 ? `${fMarkers}P` : ''}{fMarkers > 0 && fRegions > 0 ? '·' : ''}{fRegions > 0 ? `${fRegions}Z` : ''}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -412,6 +434,19 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
 
             {/*  Body  */}
             <div className="flex flex-1 overflow-hidden">
+                {/* Legend panel (collapsible left sidebar) */}
+                {legendOpen && (
+                    <MapLegend
+                        markerTypeCounts={markerTypeCounts}
+                        regionTypeCounts={regionTypeCounts}
+                        hiddenMarkerTypes={hiddenMarkerTypes}
+                        hiddenRegionTypes={hiddenRegionTypes}
+                        onToggleMarkerType={toggleMarkerType}
+                        onToggleRegionType={toggleRegionType}
+                        onClose={() => setLegendOpen(false)}
+                    />
+                )}
+
                 {/* Leaflet map */}
                 <div className="relative flex-1 overflow-hidden">
                     <MapContainer
@@ -429,7 +464,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
 
                         {/* Rendered regions */}
                         {visibleLayers.regions &&
-                            activeFloor.regions?.map((region) => (
+                            visibleRegions.map((region) => (
                                 <RegionOverlay
                                     key={region.id}
                                     region={region}
@@ -444,7 +479,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
 
                         {/* Rendered markers */}
                         {visibleLayers.markers &&
-                            activeFloor.markers?.map((marker) => (
+                            visibleMarkers.map((marker) => (
                                 <MarkerOverlay
                                     key={marker.id}
                                     marker={marker}
@@ -462,26 +497,28 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                         <MapResizeHandler />
                     </MapContainer>
 
-                    {/* Grid overlay + notice when no floor image */}
                     {!floorImage && (
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                             <div className="arc-map-grid-bg absolute inset-0" />
                             <div className="relative z-10 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)]/80 px-3 py-2 text-center backdrop-blur-sm">
                                 <Layers className="mx-auto mb-1 size-5 text-[var(--arc-text-muted)] opacity-30" />
                                 <p className="arc-mono text-[9px] tracking-widest text-[var(--arc-text-muted)]">
-                                    NO FLOOR IMAGE  SCHEMATIC MODE
+                                    NO FLOOR IMAGE - SCHEMATIC MODE
                                 </p>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Info panel  slides in from right when item selected */}
+                {/* Info panel - slides in from right when item selected */}
                 {selectedItem && (
                     <InfoPanel
                         item={selectedItem}
+                        universeId={universeId}
+                        floorEntityMarkerMap={floorEntityMarkerMap}
                         onClose={handleClearSelection}
                         onOpenDossier={handleEntityClick}
+                        onSelectMarkerByEntityId={handleSelectMarkerById}
                     />
                 )}
             </div>
@@ -489,11 +526,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
             {/*  Footer  */}
             <div className="flex shrink-0 items-center gap-4 border-t border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3 py-1.5">
                 <span className="arc-mono text-[8px] font-semibold text-[var(--arc-text-muted)]">
-                    {activeFloor.floor_number > 0
-                        ? `FLOOR ${activeFloor.floor_number}`
-                        : activeFloor.floor_number === 0
-                          ? 'GROUND FLOOR'
-                          : `BASEMENT ${Math.abs(activeFloor.floor_number)}`}
+                    {floorLabelLong(activeFloor.floor_number)}
                 </span>
                 {markerCount > 0 && (
                     <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
@@ -503,6 +536,11 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                 {regionCount > 0 && (
                     <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
                         {regionCount} ZONE{regionCount !== 1 ? 'S' : ''}
+                    </span>
+                )}
+                {hiddenMarkerTypes.size > 0 && (
+                    <span className="arc-mono text-[8px] text-[var(--arc-warning)]">
+                        {hiddenMarkerTypes.size} TYPE{hiddenMarkerTypes.size !== 1 ? 'S' : ''} HIDDEN
                     </span>
                 )}
                 {selectedItem && (
@@ -515,15 +553,140 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
     );
 }
 
-//  Info panel (right sidebar) 
+// ══════════════════════════════════════════════════════════════════════
+//  Map Legend (left sidebar - type-level filter)
+// ══════════════════════════════════════════════════════════════════════
+function MapLegend({
+    markerTypeCounts,
+    regionTypeCounts,
+    hiddenMarkerTypes,
+    hiddenRegionTypes,
+    onToggleMarkerType,
+    onToggleRegionType,
+    onClose,
+}: {
+    markerTypeCounts: Map<string, number>;
+    regionTypeCounts: Map<string, number>;
+    hiddenMarkerTypes: Set<string>;
+    hiddenRegionTypes: Set<string>;
+    onToggleMarkerType: (type: string) => void;
+    onToggleRegionType: (type: string) => void;
+    onClose: () => void;
+}) {
+    return (
+        <div className="animate-in slide-in-from-left-2 flex w-48 shrink-0 flex-col overflow-hidden border-r border-[var(--arc-border)] bg-[var(--arc-surface)] duration-150">
+            <div className="flex items-center justify-between border-b border-[var(--arc-border)] px-3 py-2">
+                <span className="arc-mono text-[9px] font-bold tracking-[0.2em] text-[var(--arc-accent)]">
+                    LEGEND
+                </span>
+                <button
+                    className="rounded p-0.5 text-[var(--arc-text-muted)] transition-colors hover:text-[var(--arc-text)]"
+                    onClick={onClose}
+                >
+                    <ChevronLeft className="size-3.5" />
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-3">
+                {/* Marker types */}
+                {markerTypeCounts.size > 0 && (
+                    <div>
+                        <div className="arc-mono mb-1.5 flex items-center gap-1 text-[8px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
+                            <MapPin className="size-2.5" /> MARKER TYPES
+                        </div>
+                        <div className="space-y-0.5">
+                            {Array.from(markerTypeCounts.entries())
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type, count]) => {
+                                    const hidden = hiddenMarkerTypes.has(type);
+                                    const color = MARKER_COLORS[type] || '#94a3b8';
+                                    return (
+                                        <button
+                                            key={type}
+                                            className={cn(
+                                                'flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition-all',
+                                                hidden
+                                                    ? 'opacity-40 hover:opacity-60'
+                                                    : 'hover:bg-[var(--arc-surface-alt)]',
+                                            )}
+                                            onClick={() => onToggleMarkerType(type)}
+                                            title={hidden ? `Show ${type} markers` : `Hide ${type} markers`}
+                                        >
+                                            <div
+                                                className={cn('size-2.5 shrink-0 rounded-full border', hidden && 'border-dashed')}
+                                                style={{ background: hidden ? 'transparent' : color, borderColor: color }}
+                                            />
+                                            <span className="arc-mono flex-1 truncate text-[8px] font-semibold tracking-wider text-[var(--arc-text)]">
+                                                {type.replace(/-/g, ' ').toUpperCase()}
+                                            </span>
+                                            <span className="arc-mono text-[7px] text-[var(--arc-text-muted)]">{count}</span>
+                                        </button>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Region types */}
+                {regionTypeCounts.size > 0 && (
+                    <div>
+                        <div className="arc-mono mb-1.5 flex items-center gap-1 text-[8px] font-bold tracking-[0.15em] text-[var(--arc-text-muted)]">
+                            <Layers className="size-2.5" /> ZONE TYPES
+                        </div>
+                        <div className="space-y-0.5">
+                            {Array.from(regionTypeCounts.entries())
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([type, count]) => {
+                                    const hidden = hiddenRegionTypes.has(type);
+                                    const color = REGION_COLORS[type] || '#94a3b8';
+                                    return (
+                                        <button
+                                            key={type}
+                                            className={cn(
+                                                'flex w-full items-center gap-1.5 rounded px-2 py-1 text-left transition-all',
+                                                hidden
+                                                    ? 'opacity-40 hover:opacity-60'
+                                                    : 'hover:bg-[var(--arc-surface-alt)]',
+                                            )}
+                                            onClick={() => onToggleRegionType(type)}
+                                            title={hidden ? `Show ${type} zones` : `Hide ${type} zones`}
+                                        >
+                                            <div
+                                                className={cn('size-2.5 shrink-0 rounded-sm border', hidden && 'border-dashed')}
+                                                style={{ background: hidden ? 'transparent' : color + '55', borderColor: color }}
+                                            />
+                                            <span className="arc-mono flex-1 truncate text-[8px] font-semibold tracking-wider text-[var(--arc-text)]">
+                                                {type.replace(/-/g, ' ').toUpperCase()}
+                                            </span>
+                                            <span className="arc-mono text-[7px] text-[var(--arc-text-muted)]">{count}</span>
+                                        </button>
+                                    );
+                                })}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  Info panel (right sidebar) - enriched with entity relations
+// ══════════════════════════════════════════════════════════════════════
 function InfoPanel({
     item,
+    universeId,
+    floorEntityMarkerMap,
     onClose,
     onOpenDossier,
+    onSelectMarkerByEntityId,
 }: {
     item: SelectedItem;
+    universeId: number;
+    floorEntityMarkerMap: Map<number, ApiEntityMapMarker>;
     onClose: () => void;
     onOpenDossier: (slug?: string) => void;
+    onSelectMarkerByEntityId: (entityId: number) => void;
 }) {
     const color =
         item.type === 'marker'
@@ -536,6 +699,69 @@ function InfoPanel({
             : item.data.region_type.replace(/-/g, ' ').toUpperCase();
 
     const entity = item.data.entity;
+    const profileUrl = getEntityProfileUrl(entity);
+
+    // Lazy-load relations when the panel opens - use the dedicated relations
+    // endpoint rather than the heavy full-entity endpoint.
+    type RelationsData = { outgoing: ApiEntityRelation[]; incoming: ApiEntityRelation[] };
+    const [relationsData, setRelationsData] = useState<RelationsData | null>(null);
+    const [loadingRelations, setLoadingRelations] = useState(false);
+
+    useEffect(() => {
+        setRelationsData(null);
+        if (!entity?.id) return;
+        setLoadingRelations(true);
+        api.fetchEntityRelations(universeId, entity.id)
+            .then((res) => setRelationsData(res))
+            .catch(() => {/* silent - relations section just won't show */})
+            .finally(() => setLoadingRelations(false));
+    }, [universeId, entity?.id]);
+
+    const relations = useMemo(() => {
+        if (!relationsData) return [];
+        const entries: {
+            key: string;
+            label: string;
+            entity: ApiEntitySummary;
+            direction: 'outgoing' | 'incoming';
+            status: string | null | undefined;
+            onThisFloor: boolean;
+        }[] = [];
+
+        relationsData.outgoing?.forEach((rel) => {
+            entries.push({
+                key: `out-${rel.id}`,
+                label: rel.relation_type?.name ?? 'RELATED TO',
+                entity: rel.to_entity,
+                direction: 'outgoing',
+                status: rel.status,
+                onThisFloor: floorEntityMarkerMap.has(rel.to_entity.id),
+            });
+        });
+
+        relationsData.incoming?.forEach((rel) => {
+            entries.push({
+                key: `in-${rel.id}`,
+                label: rel.relation_type?.inverse_name ?? rel.relation_type?.name ?? 'RELATED TO',
+                entity: rel.from_entity,
+                direction: 'incoming',
+                status: rel.status,
+                onThisFloor: floorEntityMarkerMap.has(rel.from_entity.id),
+            });
+        });
+
+        return entries;
+    }, [relationsData, floorEntityMarkerMap]);
+
+    // Group relations by label
+    const relationGroups = useMemo(() => {
+        const groups = new Map<string, typeof relations>();
+        relations.forEach((r) => {
+            if (!groups.has(r.label)) groups.set(r.label, []);
+            groups.get(r.label)!.push(r);
+        });
+        return groups;
+    }, [relations]);
 
     return (
         <div className="animate-in slide-in-from-right-2 flex w-72 shrink-0 flex-col overflow-hidden border-l border-[var(--arc-border)] bg-[var(--arc-surface)] duration-150">
@@ -571,24 +797,28 @@ function InfoPanel({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                {/* Entity card */}
+                {/* Entity card (enhanced with profile image) */}
                 {entity && (
                     <div className="border-b border-[var(--arc-border)] p-3">
                         <div className="arc-mono mb-2 text-[8px] font-bold tracking-[0.2em] text-[var(--arc-accent)]">
                             LINKED ENTITY
                         </div>
                         <div className="flex items-start gap-2.5">
-                            {/* Avatar */}
+                            {/* Avatar - prefer profile image */}
                             <div className="size-14 shrink-0 overflow-hidden rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)]">
-                                {entity.images?.[0] ? (
+                                {profileUrl ? (
                                     <img
-                                        src={entity.images[0].thumbnail_url ?? entity.images[0].url}
+                                        src={profileUrl}
                                         alt={entity.name}
                                         className="size-full object-cover"
                                     />
                                 ) : (
                                     <div className="flex size-full items-center justify-center">
-                                        <User className="size-5 text-[var(--arc-text-muted)] opacity-40" />
+                                        {entity.entity_type ? (
+                                            <TypeIcon entityType={entity.entity_type} size="md" />
+                                        ) : (
+                                            <User className="size-5 text-[var(--arc-text-muted)] opacity-40" />
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -610,13 +840,8 @@ function InfoPanel({
                                     </span>
                                 )}
                                 {entity.entity_status && (
-                                    <div
-                                        className="arc-mono mt-1 text-[8px]"
-                                        style={{
-                                            color: entity.entity_status.color || 'var(--arc-text-muted)',
-                                        }}
-                                    >
-                                        ● {entity.entity_status.name.toUpperCase()}
+                                    <div className="mt-1">
+                                        <StatusBadge status={entity.entity_status} />
                                     </div>
                                 )}
                                 {entity.short_description && (
@@ -646,6 +871,91 @@ function InfoPanel({
                         <p className="text-[10px] leading-relaxed text-[var(--arc-text)]">
                             {item.data.description}
                         </p>
+                    </div>
+                )}
+
+                {/* Entity Relations (lazy-loaded) */}
+                {entity && (
+                    <div className="border-b border-[var(--arc-border)] p-3">
+                        <div className="arc-mono mb-1.5 flex items-center gap-1.5 text-[8px] font-bold tracking-[0.2em] text-[var(--arc-text-muted)]">
+                            RELATIONS
+                            {loadingRelations && <Loader2 className="size-2.5 animate-spin text-[var(--arc-accent)]" />}
+                            {relations.length > 0 && (
+                                <span className="arc-mono text-[7px] text-[var(--arc-accent)]">{relations.length}</span>
+                            )}
+                        </div>
+
+                        {!loadingRelations && relations.length === 0 && (
+                            <p className="arc-mono text-[8px] text-[var(--arc-text-muted)]">No known relations.</p>
+                        )}
+
+                        {relationGroups.size > 0 && (
+                            <div className="space-y-2">
+                                {Array.from(relationGroups.entries()).map(([label, rels]) => (
+                                    <div key={label}>
+                                        <div className="arc-mono mb-0.5 text-[7px] font-bold tracking-wider text-[var(--arc-accent)]/70">
+                                            {label.toUpperCase()} <span className="text-[var(--arc-text-muted)]">× {rels.length}</span>
+                                        </div>
+                                        <div className="space-y-0.5">
+                                            {rels.map((rel) => {
+                                                const relProfileUrl = getEntityProfileUrl(rel.entity);
+                                                return (
+                                                    <button
+                                                        key={rel.key}
+                                                        className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left transition-colors hover:bg-[var(--arc-surface-alt)]"
+                                                        onClick={() => {
+                                                            if (rel.onThisFloor) {
+                                                                onSelectMarkerByEntityId(rel.entity.id);
+                                                            } else {
+                                                                onOpenDossier(rel.entity.slug);
+                                                            }
+                                                        }}
+                                                        title={rel.onThisFloor ? 'Jump to pin on this floor' : 'Open dossier'}
+                                                    >
+                                                        <ArrowRight
+                                                            className={cn(
+                                                                'size-2.5 shrink-0',
+                                                                rel.direction === 'incoming' && 'rotate-180',
+                                                                rel.direction === 'outgoing' ? 'text-[var(--arc-accent)]' : 'text-[var(--arc-text-muted)]',
+                                                            )}
+                                                        />
+                                                        <div className="size-5 shrink-0 overflow-hidden rounded border border-[var(--arc-border)] bg-[var(--arc-bg)]">
+                                                            {relProfileUrl ? (
+                                                                <img src={relProfileUrl} alt={rel.entity.name} className="size-full object-cover" />
+                                                            ) : (
+                                                                <div className="flex size-full items-center justify-center">
+                                                                    <TypeIcon entityType={rel.entity.entity_type} size="sm" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <span className="block truncate text-[9px] font-medium text-[var(--arc-text)]">
+                                                                {rel.entity.name}
+                                                            </span>
+                                                        </div>
+                                                        {/* "On this floor" pin indicator */}
+                                                        {rel.onThisFloor && (
+                                                            <MapPin className="size-2.5 shrink-0 text-[var(--arc-accent)]" title="Also on this floor" />
+                                                        )}
+                                                        {rel.status && (
+                                                            <span
+                                                                className={cn(
+                                                                    'size-1.5 shrink-0 rounded-full',
+                                                                    rel.status === 'active' && 'bg-[var(--arc-success)]',
+                                                                    rel.status === 'former' && 'bg-[var(--arc-text-muted)]',
+                                                                    rel.status === 'unknown' && 'bg-[var(--arc-warning)]',
+                                                                )}
+                                                                title={rel.status}
+                                                            />
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -697,7 +1007,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     );
 }
 
-//  Marker overlay sub-component 
+// ══════════════════════════════════════════════════════════════════════
+//  Marker overlay - with profile image pins + hover tooltip
+// ══════════════════════════════════════════════════════════════════════
 function MarkerOverlay({
     marker,
     bounds,
@@ -710,8 +1022,12 @@ function MarkerOverlay({
     onSelect: (item: SelectedItem) => void;
 }) {
     const color = marker.color || MARKER_COLORS[marker.marker_type] || '#60a5fa';
-    const icon = createMarkerPin(color, marker.marker_type, selected);
+    const profileUrl = getEntityProfileUrl(marker.entity);
+    const icon = createMarkerPin(color, marker.marker_type, selected, profileUrl);
     const position = pctToLatLng(marker.x_percent, marker.y_percent, bounds);
+
+    const entityName = marker.entity?.name;
+    const entityType = marker.entity?.entity_type;
 
     return (
         <Marker
@@ -723,11 +1039,56 @@ function MarkerOverlay({
                     onSelect({ type: 'marker', data: marker });
                 },
             }}
-        />
+        >
+            <LeafletTooltip
+                direction="top"
+                offset={[0, -20]}
+                className="arc-map-tooltip"
+                permanent={false}
+            >
+                <div className="flex items-center gap-1.5">
+                    {profileUrl && (
+                        <img
+                            src={profileUrl}
+                            alt=""
+                            className="size-5 shrink-0 rounded-full border border-[rgba(0,0,0,0.15)] object-cover"
+                        />
+                    )}
+                    <div className="min-w-0">
+                        <div className="truncate text-[10px] font-bold leading-tight">{marker.name}</div>
+                        {entityName && entityName !== marker.name && (
+                            <div className="truncate text-[8px] opacity-70">{entityName}</div>
+                        )}
+                        <div className="flex items-center gap-1">
+                            <span
+                                className="inline-block size-1.5 rounded-full"
+                                style={{ background: color }}
+                            />
+                            <span className="text-[7px] font-semibold uppercase tracking-wider opacity-60">
+                                {marker.marker_type.replace(/-/g, ' ')}
+                            </span>
+                            {entityType && (
+                                <span
+                                    className="rounded px-1 text-[7px] font-semibold"
+                                    style={{
+                                        background: (entityType.color || '#2563eb') + '22',
+                                        color: entityType.color || '#2563eb',
+                                    }}
+                                >
+                                    {entityType.name}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </LeafletTooltip>
+        </Marker>
     );
 }
 
-//  Region overlay sub-component 
+// ══════════════════════════════════════════════════════════════════════
+//  Region overlay - with hover tooltip
+// ══════════════════════════════════════════════════════════════════════
 function RegionOverlay({
     region,
     bounds,
@@ -741,6 +1102,7 @@ function RegionOverlay({
 }) {
     const positions = regionPointsToLatLngs(region.boundary_points, bounds);
     const color = region.color || REGION_COLORS[region.region_type] || '#60a5fa';
+    const entityName = region.entity?.name;
 
     if (positions.length < 3) return null;
 
@@ -768,6 +1130,28 @@ function RegionOverlay({
                     onSelect({ type: 'region', data: region });
                 },
             }}
-        />
+        >
+            <LeafletTooltip
+                direction="center"
+                className="arc-map-tooltip"
+                permanent={false}
+            >
+                <div className="min-w-0">
+                    <div className="truncate text-[10px] font-bold leading-tight">{region.name}</div>
+                    {entityName && entityName !== region.name && (
+                        <div className="truncate text-[8px] opacity-70">{entityName}</div>
+                    )}
+                    <div className="flex items-center gap-1">
+                        <span
+                            className="inline-block size-1.5 rounded-sm"
+                            style={{ background: color }}
+                        />
+                        <span className="text-[7px] font-semibold uppercase tracking-wider opacity-60">
+                            {region.region_type.replace(/-/g, ' ')}
+                        </span>
+                    </div>
+                </div>
+            </LeafletTooltip>
+        </Polygon>
     );
 }

@@ -246,12 +246,12 @@ class EntityController extends Controller
     public function relations(Universe $universe, Entity $entity): \Illuminate\Http\JsonResponse
     {
         $outgoing = $entity->outgoingRelations()
-            ->with(['toEntity.entityType', 'relationType'])
+            ->with(['toEntity.entityType', 'toEntity.entityStatus', 'toEntity.images', 'relationType'])
             ->orderBy('sort_order')
             ->get();
 
         $incoming = $entity->incomingRelations()
-            ->with(['fromEntity.entityType', 'relationType'])
+            ->with(['fromEntity.entityType', 'fromEntity.entityStatus', 'fromEntity.images', 'relationType'])
             ->orderBy('sort_order')
             ->get();
 

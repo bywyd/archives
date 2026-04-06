@@ -60,7 +60,11 @@ class MapController extends Controller
             $map->load([
                 'floors.images',
                 'floors.markers.entity.entityType',
+                'floors.markers.entity.entityStatus',
+                'floors.markers.entity.images',
                 'floors.regions.entity.entityType',
+                'floors.regions.entity.entityStatus',
+                'floors.regions.entity.images',
             ]);
 
             return json_decode(json_encode(new EntityMapResource($map)), true);
