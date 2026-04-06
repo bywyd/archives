@@ -13,10 +13,10 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import WikiLayout from '@/layouts/wiki-layout';
 import * as api from '@/lib/api';
-import type { ApiEntitySummary, ApiSidebarTree, ApiTimeline, ApiTimelineEvent } from '@/types/api';
+import type { ApiEntitySummary, ApiImage, ApiSidebarTree, ApiTimeline, ApiTimelineEvent } from '@/types/api';
 
 type Props = {
-    universe: { id: number; name: string; slug: string; is_locked?: boolean };
+    universe: { id: number; name: string; slug: string; is_locked?: boolean; settings?: Record<string, unknown> | null; images?: ApiImage[] };
     timeline: ApiTimeline & { events?: ApiTimelineEvent[]; entities?: ApiEntitySummary[] };
     sidebarTree: ApiSidebarTree;
 };
@@ -75,7 +75,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
 
             <div className="mb-1 flex items-start justify-between gap-3">
                 <div className="flex-1">
-                    <h1 className="text-xl font-bold text-slate-900">{timeline.name}</h1>
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{timeline.name}</h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     {editMode && !editingBasicInfo && (
@@ -106,18 +106,18 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
             )}
 
             {timeline.description && (
-                <p className="mb-6 text-sm leading-relaxed text-slate-500">{timeline.description}</p>
+                <p className="mb-6 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{timeline.description}</p>
             )}
 
             {/* Events */}
             {(events.length > 0 || editMode) && (
                 <section className="mb-8">
-                    <h2 className="text-xl font-semibold text-slate-900 pb-2 border-b-2 border-blue-100 mb-4 flex items-center gap-2">Events</h2>
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 pb-2 border-b-2 border-blue-100 dark:border-blue-900/40 mb-4 flex items-center gap-2">Events</h2>
                     {events.length > 0 && (
-                        <div className="relative ml-4 border-l-2 border-blue-100">
+                        <div className="relative ml-4 border-l-2 border-blue-100 dark:border-blue-900/40">
                             {events.map((event) => (
                                 <div key={event.id} className="relative mb-4 ml-6">
-                                    <div className="absolute -left-[31px] top-1.5 size-3 rounded-full border-2 border-blue-600 bg-white shadow-sm" />
+                                    <div className="absolute -left-[31px] top-1.5 size-3 rounded-full border-2 border-blue-600 bg-white dark:bg-slate-900 shadow-sm" />
 
                                     {editingEventId === event.id ? (
                                         <TimelineEventForm
@@ -128,7 +128,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                             onCancel={() => setEditingEventId(null)}
                                         />
                                     ) : (
-                                        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md relative">
+                                        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-4 shadow-sm transition-all duration-200 hover:shadow-md relative">
                                             {editMode && (
                                                 <div className="absolute right-2 top-2 flex items-center gap-1">
                                                     <button
@@ -142,8 +142,8 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                                 </div>
                                             )}
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-xs font-semibold text-slate-900">{event.title}</span>
-                                            {event.event_type && <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 text-slate-500 bg-white whitespace-nowrap">{event.event_type}</span>}
+                                            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{event.title}</span>
+                                            {event.event_type && <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 whitespace-nowrap">{event.event_type}</span>}
                                             {event.severity && (
                                                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${SEVERITY_COLORS[event.severity] ?? 'text-gray-600 bg-gray-50'}`}>
                                                     {event.severity}
@@ -151,16 +151,16 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                             )}
                                         </div>
                                         {event.fictional_date && (
-                                            <div className="mt-1 text-[11px] text-slate-400">{event.fictional_date}</div>
+                                            <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">{event.fictional_date}</div>
                                         )}
                                         {event.description && (
-                                            <p className="mt-2 text-xs leading-relaxed text-slate-500">{event.description}</p>
+                                            <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{event.description}</p>
                                         )}
                                         {(event.entity || event.location) && (
                                             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                                                 {event.entity && (
                                                     <div>
-                                                        <span className="text-slate-400">Entity: </span>
+                                                        <span className="text-slate-400 dark:text-slate-500">Entity: </span>
                                                         <Link href={`/w/${universe.slug}/${event.entity.slug}`} className="text-blue-600 no-underline hover:text-blue-700 hover:underline transition-colors">
                                                             {event.entity.name}
                                                         </Link>
@@ -168,7 +168,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                                 )}
                                                 {event.location && (
                                                     <div>
-                                                        <span className="text-slate-400">Location: </span>
+                                                        <span className="text-slate-400 dark:text-slate-500">Location: </span>
                                                         <Link href={`/w/${universe.slug}/${event.location.slug}`} className="text-blue-600 no-underline hover:text-blue-700 hover:underline transition-colors">
                                                             {event.location.name}
                                                         </Link>
@@ -178,7 +178,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                         )}
                                         {event.participants && event.participants.length > 0 && (
                                             <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-                                                <span className="text-slate-400">Participants:</span>
+                                                <span className="text-slate-400 dark:text-slate-500">Participants:</span>
                                                 {event.participants.map((p) => (
                                                     <span key={p.id}>
                                                         {p.entity ? (
@@ -186,7 +186,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
                                                                 {p.entity.name}
                                                             </Link>
                                                         ) : ''}
-                                                        {p.role && <span className="text-slate-400"> ({p.role})</span>}
+                                                        {p.role && <span className="text-slate-400 dark:text-slate-500"> ({p.role})</span>}
                                                     </span>
                                                 ))}
                                             </div>
@@ -219,7 +219,7 @@ function TimelinePageContent({ universe, timeline, sidebarTree }: Props) {
             {/* Related entities */}
             {timeline.entities && timeline.entities.length > 0 && (
                 <section>
-                    <h2 className="text-xl font-semibold text-slate-900 pb-2 border-b-2 border-blue-100 mb-4 flex items-center gap-2">Related Entities</h2>
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 pb-2 border-b-2 border-blue-100 dark:border-blue-900/40 mb-4 flex items-center gap-2">Related Entities</h2>
                     <div className="stagger-children grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {timeline.entities.map((e) => (
                             <div key={e.id} className="relative">

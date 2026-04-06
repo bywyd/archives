@@ -58,6 +58,26 @@
     --arc-transition: 200ms ease;
 }
 
+.dark .wiki-arc-theme {
+    --arc-bg: #0f172a;
+    --arc-bg-pure: #020617;
+    --arc-surface: #1e293b;
+    --arc-surface-hover: #334155;
+    --arc-surface-alt: #1e293b;
+    --arc-border: #334155;
+    --arc-border-strong: #e2e8f0;
+    --arc-text: #f1f5f9;
+    --arc-text-muted: #94a3b8;
+    --arc-text-light: #64748b;
+    --arc-accent: #3b82f6;
+    --arc-accent-dim: #1e3a5f;
+    --arc-accent-light: #172554;
+    --arc-danger: #ef4444;
+    --arc-warning: #f59e0b;
+    --arc-info: #3b82f6;
+    --arc-success: #10b981;
+}
+
 .wiki-arc-theme .arc-mono {
     font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }

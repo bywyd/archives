@@ -36,7 +36,7 @@ export function WikiToc({ toc }: Props) {
 
     return (
         <div className="hidden w-54 shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pl-6 pr-4 lg:block lg:w-60 md:w-56 " style={{ scrollbarWidth: 'thin' }}>
-            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 mb-3.5 pl-2">On this page</p>
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 mb-3.5 pl-2 dark:text-slate-500">On this page</p>
             <nav>
                 {toc.map((item) => (
                     <div key={item.id}>
@@ -44,8 +44,8 @@ export function WikiToc({ toc }: Props) {
                             href={`#${item.id}`}
                             className={`block py-1 px-2 text-[0.8125rem] no-underline border-l-2 mb-px leading-snug transition-all rounded-r-md ${
                                 activeId === item.id
-                                    ? 'text-blue-600 border-l-blue-600 font-medium bg-blue-50'
-                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                                    ? 'text-blue-600 border-l-blue-600 font-medium bg-blue-50 dark:text-blue-400 dark:border-l-blue-400 dark:bg-blue-950/40'
+                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800/50'
                             }`}
                         >
                             {item.title}
@@ -56,8 +56,8 @@ export function WikiToc({ toc }: Props) {
                                 href={`#${child.id}`}
                                 className={`block py-1 px-2 pl-5 text-xs no-underline border-l-2 mb-px leading-snug transition-all rounded-r-md ${
                                     activeId === child.id
-                                        ? 'text-blue-600 border-l-blue-600 font-medium bg-blue-50'
-                                        : 'text-slate-400 border-transparent hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50'
+                                        ? 'text-blue-600 border-l-blue-600 font-medium bg-blue-50 dark:text-blue-400 dark:border-l-blue-400 dark:bg-blue-950/40'
+                                        : 'text-slate-400 border-transparent hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 dark:text-slate-500 dark:hover:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-800/50'
                                 }`}
                             >
                                 {child.title}

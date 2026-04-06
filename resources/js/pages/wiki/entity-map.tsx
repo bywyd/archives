@@ -2,10 +2,10 @@ import { Head, router } from '@inertiajs/react';
 import { ChevronRight, Layers, Map } from 'lucide-react';
 import { EntityMapViewer } from '@/components/archives/entity-map-viewer';
 import WikiLayout from '@/layouts/wiki-layout';
-import type { ApiSidebarTree } from '@/types/api';
+import type { ApiImage, ApiSidebarTree } from '@/types/api';
 
 type Props = {
-    universe: { id: number; name: string; slug: string; is_locked?: boolean };
+    universe: { id: number; name: string; slug: string; is_locked?: boolean; settings?: Record<string, unknown> | null; images?: ApiImage[] };
     entity: { id: number; name: string; slug: string };
     map: { id: number; name: string; slug: string; description: string | null; floors_count: number };
     sidebarTree: ApiSidebarTree;

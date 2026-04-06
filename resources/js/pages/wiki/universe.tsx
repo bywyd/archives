@@ -125,15 +125,15 @@ export default function UniversePage({
                             </div>
                         )}
                         <div>
-                            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{universe.name}</h1>
+                            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">{universe.name}</h1>
                             {universe.description && (
-                                <p className="mt-1.5 line-clamp-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+                                <p className="mt-1.5 line-clamp-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                                     {universe.description}
                                 </p>
                             )}
                         </div>
                         {/* stats */}
-                        <div className="ml-auto hidden items-center gap-6 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 sm:flex z-999">
+                        <div className="ml-auto hidden items-center gap-6 rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 sm:flex z-999">
                             
                             <div className="flex items-center gap-1">
                                 <BookOpen className="size-4" />
@@ -163,8 +163,8 @@ export default function UniversePage({
                     {/* Featured */}
                     {featuredEntities.length > 0 && (
                         <section>
-                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900">
-                                <div className="flex size-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                                <div className="flex size-7 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
                                     <Star className="size-4" />
                                 </div>
                                 Featured Entities
@@ -180,8 +180,8 @@ export default function UniversePage({
                     {/* Recent */}
                     {recentEntities.length > 0 && (
                         <section>
-                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900">
-                                <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                                <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
                                     <TrendingUp className="size-4" />
                                 </div>
                                 Recently Added
@@ -197,8 +197,8 @@ export default function UniversePage({
                     {/* Entity Types */}
                     {entityTypes.length > 0 && (
                         <section>
-                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900">
-                                <div className="flex size-7 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                            <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+                                <div className="flex size-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                                     <BookOpen className="size-4" />
                                 </div>
                                 Browse by Type
@@ -208,16 +208,16 @@ export default function UniversePage({
                                     <Link
                                         key={t.id}
                                         href={`/w/${universe.slug}/type/${t.slug}`}
-                                        className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 hover:shadow-md hover:ring-1 hover:ring-slate-200"
+                                        className="group flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-3.5 shadow-sm transition-all hover:-translate-y-1 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md hover:ring-1 hover:ring-slate-200 dark:hover:ring-slate-700"
                                     >
                                         <div className="flex items-center gap-3">
                                             {t.icon ? <TypeIcon entityType={t} /> : <BookOpen className="size-4 text-slate-400 group-hover:text-blue-500 transition-colors" />}
-                                            <span className="font-semibold text-slate-700 transition-colors group-hover:text-slate-900" style={{ color: t.color ?? undefined }}>
+                                            <span className="font-semibold text-slate-700 dark:text-slate-300 transition-colors group-hover:text-slate-900 dark:group-hover:text-slate-100" style={{ color: t.color ?? undefined }}>
                                                 {t.name}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                            <span className="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 dark:group-hover:bg-blue-900/30 dark:group-hover:text-blue-400 transition-colors">
                                                 {t.entities_count}
                                             </span>
                                         </div>
@@ -233,22 +233,22 @@ export default function UniversePage({
                     
                     {/* Timelines */}
                     {timelines.length > 0 && (
-                        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Timelines</h2>
+                        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-5">
+                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Timelines</h2>
                             <div className="flex flex-col gap-2">
                                 {timelines.map((t) => (
                                     <Link
                                         key={t.id}
                                         href={`/w/${universe.slug}/timeline/${t.slug}`}
-                                        className="group flex items-center gap-3 rounded-lg bg-white p-3 border border-slate-100 shadow-sm transition-all hover:border-blue-200 hover:ring-1 hover:ring-blue-100"
+                                        className="group flex items-center gap-3 rounded-lg bg-white dark:bg-slate-800/60 p-3 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:border-blue-200 dark:hover:border-blue-800 hover:ring-1 hover:ring-blue-100 dark:hover:ring-blue-900/30"
                                     >
-                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                             <Clock className="size-4" />
                                         </div>
                                         <div className="flex flex-col overflow-hidden">
-                                            <span className="truncate text-sm font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{t.name}</span>
+                                            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{t.name}</span>
                                             {t.events_count != null && (
-                                                <span className="text-xs text-slate-400">{t.events_count} events</span>
+                                                <span className="text-xs text-slate-400 dark:text-slate-500">{t.events_count} events</span>
                                             )}
                                         </div>
                                     </Link>
@@ -259,26 +259,26 @@ export default function UniversePage({
 
                     {/* Media Sources */}
                     {mediaSources.length > 0 && (
-                        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Media Sources</h2>
+                        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-5">
+                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Media Sources</h2>
                             <div className="flex flex-col gap-2">
                                 {mediaSources.map((m) => (
                                     <Link
                                         key={m.id}
                                         href={`/w/${universe.slug}/media/${m.slug}`}
-                                        className="group flex items-center justify-between rounded-lg bg-white p-3 border border-slate-100 shadow-sm transition-all hover:border-blue-200 hover:ring-1 hover:ring-blue-100"
+                                        className="group flex items-center justify-between rounded-lg bg-white dark:bg-slate-800/60 p-3 border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:border-blue-200 dark:hover:border-blue-800 hover:ring-1 hover:ring-blue-100 dark:hover:ring-blue-900/30"
                                     >
                                         <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                                 <Film className="size-4" />
                                             </div>
                                             <div className="flex flex-col overflow-hidden">
-                                                <span className="truncate text-sm font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">{m.name}</span>
-                                                <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{m.media_type}</span>
+                                                <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{m.name}</span>
+                                                <span className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">{m.media_type}</span>
                                             </div>
                                         </div>
                                         {m.entities_count != null && (
-                                            <span className="shrink-0 rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-500">{m.entities_count}</span>
+                                            <span className="shrink-0 rounded-md bg-slate-50 dark:bg-slate-700 px-2 py-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">{m.entities_count}</span>
                                         )}
                                     </Link>
                                 ))}
@@ -288,25 +288,25 @@ export default function UniversePage({
 
                     {/* Categories */}
                     {categories.length > 0 && (
-                        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Categories</h2>
+                        <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-5">
+                            <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Categories</h2>
                             <div className="flex flex-col gap-3">
                                 {categories.map((cat) => (
-                                    <div key={cat.id} className="rounded-xl border border-slate-100 bg-white p-1 shadow-sm">
+                                    <div key={cat.id} className="rounded-xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-1 shadow-sm">
                                         <Link
                                             href={`/w/${universe.slug}/category/${cat.slug}`}
-                                            className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-50"
+                                            className="group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40"
                                         >
-                                            <Folder className="size-4 text-slate-400 group-hover:text-blue-600" />
-                                            <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-600">{cat.name}</span>
+                                            <Folder className="size-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">{cat.name}</span>
                                         </Link>
                                         {cat.children?.length > 0 && (
-                                            <div className="ml-5 mt-1 mb-2 space-y-1 border-l-2 border-slate-100 pl-3">
+                                            <div className="ml-5 mt-1 mb-2 space-y-1 border-l-2 border-slate-100 dark:border-slate-700 pl-3">
                                                 {cat.children.map((child) => (
                                                     <Link
                                                         key={child.id}
                                                         href={`/w/${universe.slug}/category/${child.slug}`}
-                                                        className="block rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-blue-600"
+                                                        className="block rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40 hover:text-blue-600 dark:hover:text-blue-400"
                                                     >
                                                         {child.name}
                                                     </Link>

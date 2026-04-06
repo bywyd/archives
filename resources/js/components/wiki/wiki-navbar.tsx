@@ -10,10 +10,13 @@ import {
     LogIn,
     Map,
     Menu,
+    Moon,
     Search,
+    Sun,
     X,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { useAppearance } from '@/hooks/use-appearance';
 import { TypeIcon } from '@/components/archives/type-icon';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import * as api from '@/lib/api';
@@ -63,7 +66,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                 <div className="sticky top-0 z-50 h-0.75 w-full shrink-0" style={{ backgroundColor: universeThemeColor }} />
             )}
             <header
-                className={`bg-white/96 backdrop-blur-xl saturate-180 border-b border-slate-200 sticky z-40 flex items-center shrink-0 ${
+                className={`bg-white/96 backdrop-blur-xl saturate-180 border-b border-slate-200 sticky z-40 flex items-center shrink-0 dark:bg-slate-950/96 dark:border-slate-800 ${
                     universeThemeColor ? 'top-0.75 h-14' : 'top-0 h-14'
                 }`}
             >
@@ -81,7 +84,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                             : 
                                 <AppLogoIcon className="size-7 text-blue-600" />    
                             }
-                            <span className="hidden tracking-tight sm:inline">{page.props.name}</span>
+                            <span className="hidden tracking-tight sm:inline dark:text-slate-100">{page.props.name}</span>
                         </Link>
 
                         {/* Universe icon badge shown when a universe has an uploaded icon */}
@@ -109,7 +112,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                                                     {item.title}
                                                 </Link>
                                             ) : (
-                                                <span className="text-slate-900 font-medium truncate">{item.title}</span>
+                                                <span className="text-slate-900 font-medium truncate dark:text-slate-100">{item.title}</span>
                                             )}
                                         </span>
                                     ))}
@@ -164,24 +167,25 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                         
                         <button
                             onClick={() => setExpanded(true)}
-                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-400 shadow-sm transition-all hover:border-slate-300 hover:shadow sm:w-44"
+                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-400 shadow-sm transition-all hover:border-slate-300 hover:shadow sm:w-44 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500 dark:hover:border-slate-600"
                         >
                             <Search className="size-3.5 shrink-0" />
                             <span className="hidden flex-1 text-left sm:inline">Search…</span>
-                            <kbd className="ml-auto hidden rounded border border-slate-200 bg-white px-1 py-0.5 font-mono text-[9px] text-slate-400 sm:inline">/</kbd>
+                            <kbd className="ml-auto hidden rounded border border-slate-200 bg-white px-1 py-0.5 font-mono text-[9px] text-slate-400 sm:inline dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">CTRL+K</kbd>
                         </button>
                         <Link
                             href="/archives"
-                            className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 hover:no-underline"
+                            className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 hover:no-underline dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                         >
                             Archives
                         </Link>
+                        <DarkModeToggle />
                         {user ? (
                             <UserMenu user={user} />
                         ) : (
                             <Link
                                 href="/login"
-                                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:no-underline"
+                                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:no-underline dark:text-blue-400 dark:hover:bg-blue-950"
                             >
                                 <LogIn className="size-3.5" />
                                 <span className="hidden sm:inline">Log in</span>
@@ -194,7 +198,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                         
                         <button
                             onClick={() => setExpanded(true)}
-                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-400 shadow-sm transition-all hover:border-slate-300 hover:shadow sm:w-44"
+                            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-400 shadow-sm transition-all hover:border-slate-300 hover:shadow sm:w-44 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:border-slate-600"
                         >
                             <Search className="size-3.5 shrink-0" />
                             <span className="hidden flex-1 text-left sm:inline">Search…</span>
@@ -220,7 +224,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                     onMouseLeave={handleMouseLeave}
                 >
                     <div
-                        className="bg-white border-b border-slate-200 shadow-lg"
+                        className="bg-white border-b border-slate-200 shadow-lg dark:bg-slate-900 dark:border-slate-800"
                         style={{ animation: 'megaMenuFadeIn 0.15s ease-out' }}
                     >
                         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -379,7 +383,7 @@ export function WikiNavbar({ breadcrumbs = [], sidebarTree, universe, universeIc
                     </div>
                     {/* Backdrop */}
                     <div
-                        className="fixed inset-0 bg-black/10 -z-10"
+                        className="fixed inset-0 bg-black/10 dark:bg-black/30 -z-10"
                         onClick={() => setMegaMenuOpen(false)}
                     />
                 </div>
@@ -703,7 +707,7 @@ function SearchWidget({isOpen, onOpen, onClose}: {isOpen: boolean; onOpen: () =>
                     <form
                         onSubmit={handleSubmit}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative z-10 w-full max-w-3xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+                        className="relative z-10 w-full max-w-3xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
                         style={{ animation: 'wiki-fade-in 0.12s ease-out' }}
                     >
                         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3.5">
@@ -714,7 +718,7 @@ function SearchWidget({isOpen, onOpen, onClose}: {isOpen: boolean; onOpen: () =>
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 placeholder="Search the wiki…"
-                                className="flex-1 border-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                                className="flex-1 border-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-500"
                             />
                             <button
                                 type="button"
@@ -806,6 +810,23 @@ function SearchWidget({isOpen, onOpen, onClose}: {isOpen: boolean; onOpen: () =>
 }
 
 
+//  Dark Mode Toggle 
+
+function DarkModeToggle() {
+    const { resolvedAppearance, updateAppearance } = useAppearance();
+    const isDark = resolvedAppearance === 'dark';
+
+    return (
+        <button
+            onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+            {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
+    );
+}
+
 //  User Menu 
 
 function UserMenu({ user }: { user: User }) {
@@ -825,35 +846,35 @@ function UserMenu({ user }: { user: User }) {
         <div className="relative" ref={ref}>
             <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
             >
-                <div className="size-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-600">
+                <div className="size-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-600 dark:bg-blue-900 dark:text-blue-400">
                     {user.name?.charAt(0) ?? 'U'}
                 </div>
             </button>
 
             {open && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-100">
-                        <div className="text-sm font-medium text-slate-900 truncate">{user.name}</div>
-                        <div className="text-xs text-slate-500 truncate">{user.email}</div>
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden dark:bg-slate-900 dark:border-slate-700">
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="text-sm font-medium text-slate-900 truncate dark:text-slate-100">{user.name}</div>
+                        <div className="text-xs text-slate-500 truncate dark:text-slate-400">{user.email}</div>
                     </div>
                     <div className="p-1">
                         <Link
                             href="/dashboard"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 no-underline rounded-lg transition-colors hover:bg-slate-50"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 no-underline rounded-lg transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
                             Dashboard
                         </Link>
                         <Link
                             href="/settings"
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 no-underline rounded-lg transition-colors hover:bg-slate-50"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 no-underline rounded-lg transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
                             Settings
                         </Link>
                         <button
                             onClick={() => router.post('/logout')}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-lg transition-colors hover:bg-red-50 bg-transparent border-none cursor-pointer"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 rounded-lg transition-colors hover:bg-red-50 bg-transparent border-none cursor-pointer dark:text-red-400 dark:hover:bg-red-950"
                         >
                             Log out
                         </button>

@@ -77,23 +77,23 @@ function RevisionDiffTable({ oldValues, newValues }: {
     if (entries.length === 0) return null;
 
     return (
-        <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 text-xs">
+        <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
             <table className="w-full">
                 <thead>
-                    <tr className="bg-slate-50">
-                        <th className="border-b border-slate-200 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500">Field</th>
-                        <th className="border-b border-l border-slate-200 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-red-500">Before</th>
-                        <th className="border-b border-l border-slate-200 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-emerald-600">After</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60">
+                        <th className="border-b border-slate-200 dark:border-slate-700 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Field</th>
+                        <th className="border-b border-l border-slate-200 dark:border-slate-700 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-red-500">Before</th>
+                        <th className="border-b border-l border-slate-200 dark:border-slate-700 px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">After</th>
                     </tr>
                 </thead>
                 <tbody>
                     {entries.map(({ key, old: oldVal, new: newVal }) => (
-                        <tr key={key} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
-                            <td className="px-3 py-2 font-mono font-semibold text-slate-700">{key}</td>
-                            <td className="border-l border-slate-100 px-3 py-2 font-mono text-red-600 align-top">
+                        <tr key={key} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <td className="px-3 py-2 font-mono font-semibold text-slate-700 dark:text-slate-300">{key}</td>
+                            <td className="border-l border-slate-100 dark:border-slate-800 px-3 py-2 font-mono text-red-600 dark:text-red-400 align-top">
                                 {formatValue(oldVal)}
                             </td>
-                            <td className="border-l border-slate-100 px-3 py-2 font-mono text-emerald-700 align-top">
+                            <td className="border-l border-slate-100 dark:border-slate-800 px-3 py-2 font-mono text-emerald-700 dark:text-emerald-400 align-top">
                                 {formatValue(newVal)}
                             </td>
                         </tr>
@@ -150,7 +150,7 @@ function RevisionRow({
     }
 
     return (
-        <div className="rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 shadow-sm transition-shadow hover:shadow-md">
             {/* Row header */}
             <div
                 className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-xs select-none"
@@ -169,10 +169,10 @@ function RevisionRow({
                 </span>
 
                 {/* Model label */}
-                <span className="shrink-0 font-medium text-slate-500">{modelLabel}</span>
+                <span className="shrink-0 font-medium text-slate-500 dark:text-slate-400">{modelLabel}</span>
 
                 {/* Timestamp */}
-                <span className="flex items-center gap-1 text-slate-400">
+                <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
                     <Clock className="size-3" />
                     <time dateTime={revision.created_at}>
                         {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
@@ -182,17 +182,17 @@ function RevisionRow({
 
                 {/* User */}
                 {revision.user ? (
-                    <span className="flex items-center gap-1 text-slate-400">
+                    <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
                         <User className="size-3" />
                         {revision.user.name}
                     </span>
                 ) : (
-                    <span className="text-slate-300 italic text-[10px]">system</span>
+                    <span className="text-slate-300 dark:text-slate-600 italic text-[10px]">system</span>
                 )}
 
                 {/* Fields count */}
                 {hasDiff && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">
+                    <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[10px] text-slate-400 dark:text-slate-500">
                         {Object.keys({ ...(revision.old_values ?? {}), ...(revision.new_values ?? {}) }).filter(k => !DIFF_EXCLUDE.has(k)).length} field{Object.keys({ ...(revision.old_values ?? {}), ...(revision.new_values ?? {}) }).filter(k => !DIFF_EXCLUDE.has(k)).length !== 1 ? 's' : ''}
                     </span>
                 )}
@@ -207,8 +207,8 @@ function RevisionRow({
                             onBlur={() => setConfirming(false)}
                             className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-colors ${
                                 confirming
-                                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                    : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'
+                                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-blue-800 dark:hover:bg-blue-900/30 dark:hover:text-blue-400'
                             }`}
                         >
                             {rolling ? (
@@ -222,7 +222,7 @@ function RevisionRow({
 
                     {/* Expand chevron */}
                     {hasDiff && (
-                        <span className="text-slate-300">
+                        <span className="text-slate-300 dark:text-slate-600">
                             {expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                         </span>
                     )}
@@ -231,7 +231,7 @@ function RevisionRow({
 
             {/* Expandable diff */}
             {expanded && hasDiff && (
-                <div className="border-t border-slate-200 px-4 pb-4 pt-1">
+                <div className="border-t border-slate-200 dark:border-slate-700 px-4 pb-4 pt-1">
                     <RevisionDiffTable oldValues={revision.old_values} newValues={revision.new_values} />
                 </div>
             )}
@@ -278,27 +278,27 @@ export default function EntityHistoryPage({ universe, entity, revisions, sidebar
             <div className="mb-6">
                 <Link
                     href={`/w/${universe.slug}/${entity.slug}`}
-                    className="mb-3 inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-600 transition-colors"
+                    className="mb-3 inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
                     <ArrowLeft className="size-3.5" />
                     Back to {entity.name}
                 </Link>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50">
-                        <History className="size-4 text-blue-600" />
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                        <History className="size-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900">Revision History</h1>
-                        <p className="text-sm text-slate-500">{entity.name}</p>
+                        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Revision History</h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{entity.name}</p>
                     </div>
-                    <span className="ml-auto rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                    <span className="ml-auto rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 shadow-sm">
                         {revisions.length} record{revisions.length !== 1 ? 's' : ''}
                     </span>
                 </div>
 
                 {canRollback && (
-                    <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+                    <p className="mt-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-300">
                         <strong>Admin mode:</strong> You can revert individual changes. Click <strong>Revert</strong> on any revision, then confirm. Rollbacks are recorded and traceable.
                     </p>
                 )}
@@ -306,10 +306,10 @@ export default function EntityHistoryPage({ universe, entity, revisions, sidebar
 
             {/* Revision list */}
             {revisions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-                    <History className="size-8 text-slate-300" />
-                    <p className="font-medium text-slate-500">No revision records yet</p>
-                    <p className="text-xs text-slate-400">Changes will appear here once the entity is edited.</p>
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 py-16 text-center shadow-sm">
+                    <History className="size-8 text-slate-300 dark:text-slate-600" />
+                    <p className="font-medium text-slate-500 dark:text-slate-400">No revision records yet</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Changes will appear here once the entity is edited.</p>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -317,11 +317,11 @@ export default function EntityHistoryPage({ universe, entity, revisions, sidebar
                         <div key={date}>
                             {/* Date separator */}
                             <div className="mb-2 flex items-center gap-3">
-                                <div className="h-px flex-1 bg-slate-200" />
-                                <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                                <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                                     {formatGroupDate(date)}
                                 </span>
-                                <div className="h-px flex-1 bg-slate-200" />
+                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
                             </div>
 
                             <div className="space-y-1.5">

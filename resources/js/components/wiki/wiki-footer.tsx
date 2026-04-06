@@ -37,7 +37,7 @@ export function WikiFooter({
     const totalEntities = sidebarTree?.total_entities ?? 0;
 
     return (
-        <footer className="border-t border-slate-200 bg-slate-50">
+        <footer className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
             <div className="mx-auto max-w-7xl px-6 py-12">
                 <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4">
 
@@ -246,7 +246,7 @@ export function WikiFooter({
             </div>
 
             {/*  Bottom Bar  */}
-            <div className="border-t border-slate-200 bg-white">
+            <div className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
                 <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-4 md:flex-row">
                     <div className="flex items-center gap-2 text-[0.8125rem] text-slate-500">
                         {/* <AppLogoIcon className="size-7 text-blue-600" /> */}
