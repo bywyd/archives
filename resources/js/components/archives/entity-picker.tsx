@@ -104,7 +104,7 @@ export function EntityPicker({ universeId, value, onChange, placeholder = 'Searc
     return (
         <div ref={containerRef} className={cn('relative', className)}>
             <div className="relative">
-                <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-[var(--arc-text-muted)]" />
+                {/* <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-[var(--arc-text-muted)]" /> */}
                 <input
                     type="text"
                     value={query}

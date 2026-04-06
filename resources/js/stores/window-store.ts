@@ -59,6 +59,7 @@ type WindowStore = {
         icon?: string;
         props?: Record<string, unknown>;
         size?: { width: number; height: number };
+        maximized?: boolean;
     }) => string;
     closeWindow: (id: string) => void;
     focusWindow: (id: string) => void;
@@ -89,7 +90,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
     activeWindowId: null,
     nextZIndex: 100,
 
-    openWindow({ type, title, icon, props = {}, size }) {
+    openWindow({ type, title, icon, props = {}, size, maximized = false }) {
         const state = get();
 
         // Check if a window with same type+key already exists (e.g., same entity dossier)
@@ -123,7 +124,7 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
             size: size ?? DEFAULT_SIZE,
             zIndex,
             minimized: false,
-            maximized: false,
+            maximized,
         };
 
         set({

@@ -228,7 +228,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                 entityId,
                 mapId: mapData.id,
             },
-            size: { width: 920, height: 660 },
+            maximized: true,
         });
     }, [openWindow, mapData, universeId, entityId]);
 
