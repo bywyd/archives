@@ -15,7 +15,7 @@ import {
     ZoomIn,
     ZoomOut,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ImageOverlay, MapContainer, Marker, Polygon, Tooltip as LeafletTooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { cn } from '@/lib/utils';
@@ -88,6 +88,36 @@ function MapResizeHandler() {
     return null;
 }
 
+/** Fits the map to the image on mount and re-fits whenever the floor or resolved bounds change. */
+function MapViewerInitializer({ imageBounds, floorId }: { imageBounds: L.LatLngBoundsExpression; floorId: number }) {
+    const map = useMap();
+    const lastKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        const bounds = L.latLngBounds(imageBounds as L.LatLngBoundsLiteral);
+        const key = `${floorId}-${bounds.getEast()}-${bounds.getNorth()}`;
+        if (lastKey.current === key) return;
+        lastKey.current = key;
+
+        requestAnimationFrame(() => {
+            map.invalidateSize();
+            const imgW = bounds.getEast() - bounds.getWest();
+            const imgH = bounds.getNorth() - bounds.getSouth();
+            const { x: canvasW, y: canvasH } = map.getSize();
+
+            // Fit so the entire image is visible with no wasted gray border
+            const zoomByWidth  = Math.log2(canvasW / imgW);
+            const zoomByHeight = Math.log2(canvasH / imgH);
+            const zoom = Math.min(zoomByWidth, zoomByHeight);
+            const snapped = Math.round(zoom / 0.25) * 0.25;
+
+            map.setView(bounds.getCenter(), snapped, { animate: false });
+        });
+    }, [map, imageBounds, floorId]);
+
+    return null;
+}
+
 //  SelectedItem type 
 type SelectedItem =
     | { type: 'marker'; data: ApiEntityMapMarker }
@@ -101,9 +131,7 @@ type Props = {
     editLinkHref?: string;
 };
 
-// ══════════════════════════════════════════════════════════════════════
 //  Main component
-// ══════════════════════════════════════════════════════════════════════
 export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate, editLinkHref }: Props) {
     const [mapData, setMapData] = useState<ApiEntityMap | null>(null);
     const [loading, setLoading] = useState(true);
@@ -151,11 +179,45 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
 
     const floorImage = useMemo(() => activeFloor?.images?.[0] ?? null, [activeFloor]);
 
+    // Detect real image dimensions so wide/tall images display at their correct
+    // aspect ratio instead of being squished into the 1000×1000 fallback square.
+    const [measuredDims, setMeasuredDims] = useState<{ w: number; h: number } | null>(null);
+    const measureKey = activeFloor && floorImage ? `${activeFloor.id}-${floorImage.url}` : null;
+    const lastMeasureKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!measureKey || !floorImage || !activeFloor) return;
+        if (lastMeasureKey.current === measureKey) return;
+        lastMeasureKey.current = measureKey;
+
+        const storedW = activeFloor.image_width;
+        const storedH = activeFloor.image_height;
+        if (storedW && storedH) {
+            setMeasuredDims({ w: storedW, h: storedH });
+            return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+            if (img.naturalWidth && img.naturalHeight) {
+                setMeasuredDims({ w: img.naturalWidth, h: img.naturalHeight });
+            }
+        };
+        img.src = floorImage.url;
+    }, [measureKey, floorImage, activeFloor]);
+
+    // Reset measured dims when switching floors so stale dims don't bleed through
+    useEffect(() => {
+        setMeasuredDims(null);
+    }, [activeFloorId]);
+
     const imageBounds = useMemo<L.LatLngBoundsExpression>(() => {
-        const w = activeFloor?.image_width || 1000;
-        const h = activeFloor?.image_height || 1000;
-        return [[0, 0], [h, w]];
-    }, [activeFloor]);
+        const w = measuredDims?.w ?? activeFloor?.image_width ?? null;
+        const h = measuredDims?.h ?? activeFloor?.image_height ?? null;
+        if (w && h) return [[0, 0], [h, w]];
+        // Placeholder until image loads (a fraction of a second)
+        return [[0, 0], [600, 800]];
+    }, [measuredDims, activeFloor?.image_width, activeFloor?.image_height]);
 
     const sortedFloors = useMemo(
         () => [...(mapData?.floors ?? [])].sort((a, b) => a.floor_number - b.floor_number),
@@ -452,9 +514,8 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                     <MapContainer
                         key={activeFloorId ?? 'no-floor'}
                         crs={L.CRS.Simple}
-                        bounds={imageBounds}
-                        maxZoom={4}
-                        minZoom={-3}
+                        maxZoom={5}
+                        minZoom={-4}
                         zoomSnap={0.25}
                         zoomDelta={0.5}
                         attributionControl={false}
@@ -495,6 +556,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
                         <MapControls imageBounds={imageBounds} />
                         <BgClickHandler onBgClick={handleClearSelection} />
                         <MapResizeHandler />
+                        <MapViewerInitializer imageBounds={imageBounds} floorId={activeFloorId ?? 0} />
                     </MapContainer>
 
                     {!floorImage && (
@@ -553,9 +615,7 @@ export function EntityMapViewer({ universeId, entityId, mapId, onEntityNavigate,
     );
 }
 
-// ══════════════════════════════════════════════════════════════════════
 //  Map Legend (left sidebar - type-level filter)
-// ══════════════════════════════════════════════════════════════════════
 function MapLegend({
     markerTypeCounts,
     regionTypeCounts,
@@ -670,9 +730,7 @@ function MapLegend({
     );
 }
 
-// ══════════════════════════════════════════════════════════════════════
 //  Info panel (right sidebar) - enriched with entity relations
-// ══════════════════════════════════════════════════════════════════════
 function InfoPanel({
     item,
     universeId,
@@ -1007,9 +1065,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════════════════
 //  Marker overlay - with profile image pins + hover tooltip
-// ══════════════════════════════════════════════════════════════════════
 function MarkerOverlay({
     marker,
     bounds,
@@ -1086,9 +1142,7 @@ function MarkerOverlay({
     );
 }
 
-// ══════════════════════════════════════════════════════════════════════
 //  Region overlay - with hover tooltip
-// ══════════════════════════════════════════════════════════════════════
 function RegionOverlay({
     region,
     bounds,
