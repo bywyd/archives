@@ -15,7 +15,7 @@ import * as api from '@/lib/api';
 import type { ApiEntitySummary, ApiImage, ApiMediaSource, ApiSidebarTree, ApiTag } from '@/types/api';
 
 type Props = {
-    universe: { id: number; name: string; slug: string; is_locked?: boolean };
+    universe: { id: number; name: string; slug: string; is_locked?: boolean; settings?: Record<string, unknown> | null; images?: ApiImage[] };
     mediaSource: ApiMediaSource & { entities?: ApiEntitySummary[]; tags?: ApiTag[] };
     sidebarTree: ApiSidebarTree;
 };
@@ -72,8 +72,8 @@ function MediaSourcePageContent({ universe, mediaSource, sidebarTree }: Props) {
 
             <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-xl font-bold text-slate-900">{mediaSource.name}</h1>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 text-slate-500 bg-white whitespace-nowrap">{mediaSource.media_type}</span>
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{mediaSource.name}</h1>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 whitespace-nowrap">{mediaSource.media_type}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     {editMode && !editingBasicInfo && (
@@ -104,30 +104,30 @@ function MediaSourcePageContent({ universe, mediaSource, sidebarTree }: Props) {
             )}
 
             {/* Info card */}
-            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs shadow-sm">
+            <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 text-xs shadow-sm">
                 <div className="flex items-center gap-1.5">
-                    <Film className="size-3.5 text-blue-600" />
-                    <span className="text-slate-400">Type:</span>
-                    <span className="font-medium text-slate-900">{mediaSource.media_type}</span>
+                    <Film className="size-3.5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-slate-400 dark:text-slate-500">Type:</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{mediaSource.media_type}</span>
                 </div>
                 {mediaSource.release_date && (
                     <div className="flex items-center gap-1.5">
-                        <Calendar className="size-3.5 text-blue-600" />
-                        <span className="text-slate-400">Released:</span>
-                        <span className="font-medium text-slate-900">{mediaSource.release_date}</span>
+                        <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-slate-400 dark:text-slate-500">Released:</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{mediaSource.release_date}</span>
                     </div>
                 )}
             </div>
 
             {mediaSource.description && (
-                <p className="mb-6 text-sm leading-relaxed text-slate-500">{mediaSource.description}</p>
+                <p className="mb-6 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{mediaSource.description}</p>
             )}
 
             {/* Tags */}
             {mediaSource.tags && mediaSource.tags.length > 0 && (
                 <div className="mb-6 flex flex-wrap gap-1.5">
                     {mediaSource.tags.map((tag) => (
-                        <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 text-slate-500 bg-white whitespace-nowrap" style={tag.color ? { borderColor: tag.color, color: tag.color, backgroundColor: tag.color + '08' } : undefined}>
+                        <span key={tag.id} className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 whitespace-nowrap" style={tag.color ? { borderColor: tag.color, color: tag.color, backgroundColor: tag.color + '08' } : undefined}>
                             {tag.name}
                         </span>
                     ))}
@@ -137,7 +137,7 @@ function MediaSourcePageContent({ universe, mediaSource, sidebarTree }: Props) {
             {/* Entities */}
             {mediaSource.entities && mediaSource.entities.length > 0 && (
                 <section>
-                    <h2 className="text-xl font-semibold text-slate-900 pb-2 border-b-2 border-blue-100 mb-4 flex items-center gap-2">Featured Entities ({mediaSource.entities.length})</h2>
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 pb-2 border-b-2 border-blue-100 dark:border-blue-900/40 mb-4 flex items-center gap-2">Featured Entities ({mediaSource.entities.length})</h2>
                     <div className="stagger-children grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {mediaSource.entities.map((e) => (
                             <div key={e.id} className="relative">

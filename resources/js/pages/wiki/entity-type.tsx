@@ -1,6 +1,7 @@
-﻿import { Head, Link, router } from '@inertiajs/react';
+﻿import { Head, router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import { WikiEntityCard } from '@/components/wiki/wiki-entity-card';
+import { WikiPagination } from '@/components/wiki/wiki-pagination';
 import { TypeIcon } from '@/components/archives/type-icon';
 import WikiLayout from '@/layouts/wiki-layout';
 import type { ApiEntitySummary, ApiMetaEntityType, ApiSidebarTree, ApiUniverse, PaginatedResponse } from '@/types/api';
@@ -21,7 +22,7 @@ export default function EntityTypePage({ universe, sidebarTree, entityType, enti
                 { title: entityType.name },
             ]}
             sidebarTree={sidebarTree}
-            universe={{ id: universe.id, name: universe.name, slug: universe.slug }}
+            universe={universe}
         >
             <Head title={entityType.name + " - " + universe.name}>
                 <meta name="description" content={entityType.description ?? `Browse all ${entityType.name} entities in ${universe.name}.`} />
@@ -31,13 +32,13 @@ export default function EntityTypePage({ universe, sidebarTree, entityType, enti
             <div className="mb-4 flex items-center gap-3">
                 <TypeIcon entityType={entityType} size="lg" />
                 <div>
-                    <h1 className="text-xl font-bold text-slate-900">{entityType.name}</h1>
-                    <span className="text-xs text-slate-400">{entities.meta.total} entities</span>
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{entityType.name}</h1>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{entities.meta.total} entities</span>
                 </div>
             </div>
 
             {entityType.description && (
-                <p className="mb-6 text-sm leading-relaxed text-slate-500">{entityType.description}</p>
+                <p className="mb-6 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{entityType.description}</p>
             )}
 
             {/* Search within type */}
@@ -59,7 +60,7 @@ export default function EntityTypePage({ universe, sidebarTree, entityType, enti
                             }, 300);
                             return () => clearTimeout(timeout);
                         }}
-                        className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/10"
+                        className="h-9 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/10"
                     />
                 </div>
             </div>
@@ -72,25 +73,12 @@ export default function EntityTypePage({ universe, sidebarTree, entityType, enti
             </div>
 
             {entities.data.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-14 px-6">
-                    <p className="text-sm text-slate-500">No entities found.</p>
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-14 px-6">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No entities found.</p>
                 </div>
             )}
 
-            {/* Pagination */}
-            {entities.meta.last_page > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-2">
-                    {entities.links.prev && (
-                        <Link href={entities.links.prev} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow text-xs">Previous</Link>
-                    )}
-                    <span className="text-xs text-slate-500">
-                        Page {entities.meta.current_page} of {entities.meta.last_page}
-                    </span>
-                    {entities.links.next && (
-                        <Link href={entities.links.next} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow text-xs">Next</Link>
-                    )}
-                </div>
-            )}
+            <WikiPagination meta={entities.meta} links={entities.links} />
         </WikiLayout>
     );
 }

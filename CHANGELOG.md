@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0] - 2026-04-07
+
+### Added
+
+- Added Darkmode support for Wiki UI
+- Added Recent Events and Updated Entites display into operations map component
+- Added map-data endpoint for operations map component to pull data at once. 
+
+### Improved
+
+- Improved overall Wiki UI
+- Improved UX of Custom map Editor and viewer
+
 ## [1.2.0] - 2026-04-05
 
 ### Added

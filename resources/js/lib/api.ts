@@ -297,7 +297,7 @@ export function deleteEntity(universeId: number, id: number) {
 }
 
 export function fetchEntityRelations(universeId: number, entityId: number) {
-    return get<{ data: { outgoing: ApiEntityRelation[]; incoming: ApiEntityRelation[] } }>(
+    return get<{ outgoing: ApiEntityRelation[]; incoming: ApiEntityRelation[] }>(
         `/universes/${universeId}/entities/${entityId}/relations`,
     );
 }

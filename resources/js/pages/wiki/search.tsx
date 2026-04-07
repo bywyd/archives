@@ -1,7 +1,8 @@
-﻿import { Head, Link, router } from '@inertiajs/react';
+﻿import { Head, router } from '@inertiajs/react';
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useState } from 'react';
 import { WikiEntityCard } from '@/components/wiki/wiki-entity-card';
+import { WikiPagination } from '@/components/wiki/wiki-pagination';
 import WikiLayout from '@/layouts/wiki-layout';
 import type { ApiEntitySummary, ApiMetaEntityType, PaginatedResponse } from '@/types/api';
 
@@ -43,7 +44,7 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
         <WikiLayout breadcrumbs={[{ title: 'Wiki', href: '/w' }, { title: 'Search' }]} wide>
             <Head title={q ? `Search: ${q}` : 'Search'} />
 
-            <h1 className="mb-5 text-xl font-bold text-slate-900">Search</h1>
+            <h1 className="mb-5 text-xl font-bold text-slate-900 dark:text-slate-100">Search</h1>
 
             {/* Search form */}
             <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
@@ -55,7 +56,7 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                         placeholder="Search entities..."
-                        className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/10"
+                        className="h-10 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/10"
                     />
                 </div>
                 <button type="submit" className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:translate-y-px text-xs">Search</button>
@@ -67,7 +68,7 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
                 <select
                     value={selectedUniverse ?? ''}
                     onChange={(e) => handleFilterChange('universe', e.target.value)}
-                    className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none"
+                    className="h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
                 >
                     <option value="">All Universes</option>
                     {universes.map((u) => (
@@ -77,7 +78,7 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
                 <select
                     value={selectedType ?? ''}
                     onChange={(e) => handleFilterChange('type', e.target.value)}
-                    className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-900 shadow-sm focus:border-blue-600 focus:outline-none"
+                    className="h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
                 >
                     <option value="">All Types</option>
                     {entityTypes.map((t) => (
@@ -89,7 +90,7 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
             {/* Results */}
             {results ? (
                 <>
-                    <p className="mb-4 text-xs text-slate-500">
+                    <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
                         {results.meta.total} result{results.meta.total !== 1 ? 's' : ''} for &ldquo;{initialQuery}&rdquo;
                     </p>
                     <div className="stagger-children grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -103,30 +104,18 @@ export default function SearchPage({ query: initialQuery, selectedUniverse, sele
                     </div>
 
                     {results.data.length === 0 && (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-14 px-6">
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-14 px-6">
                             <Search className="mx-auto mb-3 size-8 text-slate-400" />
-                            <p className="text-sm text-slate-500">No results found. Try a different search term.</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">No results found. Try a different search term.</p>
                         </div>
                     )}
 
-                    {results.meta.last_page > 1 && (
-                        <div className="mt-8 flex items-center justify-center gap-2">
-                            {results.links.prev && (
-                                <Link href={results.links.prev} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow text-xs">Previous</Link>
-                            )}
-                            <span className="text-xs text-slate-500">
-                                Page {results.meta.current_page} of {results.meta.last_page}
-                            </span>
-                            {results.links.next && (
-                                <Link href={results.links.next} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow text-xs">Next</Link>
-                            )}
-                        </div>
-                    )}
+                    <WikiPagination meta={results.meta} links={results.links} />
                 </>
             ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-14 px-6">
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-14 px-6">
                     <Search className="mx-auto mb-3 size-8 text-slate-400" />
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                         Enter a search term to find entities across all universes.
                     </p>
                 </div>

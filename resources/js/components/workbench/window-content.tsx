@@ -22,7 +22,7 @@ const TimelineView            = lazy(() => import('@/components/archives/timelin
 const UniverseDashboard       = lazy(() => import('@/components/archives/universe-dashboard').then((m) => ({ default: m.UniverseDashboard })));
 const ImageViewerWindow       = lazy(() => import('@/components/archives/image-viewer-window').then((m) => ({ default: m.ImageViewerWindow })));
 const EntityMapViewer          = lazy(() => import('@/components/archives/entity-map-viewer').then((m) => ({ default: m.EntityMapViewer })));
-const EntityMapEditor          = lazy(() => import('@/components/archives/entity-map-editor').then((m) => ({ default: m.EntityMapEditor })));
+const EntityMapEditor          = lazy(() => import('@/components/archives/map-editor').then((m) => ({ default: m.EntityMapEditor })));
 const LicenseDisclaimer       = lazy(() => import('../legal/license-disclaimer').then((m) => ({ default: m.LicenseDisclaimer })));
 const LoginWindow             = lazy(() => import('@/components/auth/login-window').then((m) => ({ default: m.LoginWindow })));
 const EntityRevisionsWindow   = lazy(() => import('@/components/archives/entity-revisions-window').then((m) => ({ default: m.EntityRevisionsWindow })));

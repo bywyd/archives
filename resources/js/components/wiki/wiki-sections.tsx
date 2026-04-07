@@ -48,7 +48,7 @@ function SectionBlock({ section, depth, universeSlug, onDelete, onEdit, editingI
     return (
         <div className="mb-8 scroll-mt-20" id={`section-${section.slug}`}>
             <div className="flex items-center gap-2">
-                <HeadingTag className={`flex-1 flex items-center gap-2 ${depth === 0 ? 'text-xl font-semibold text-slate-900 pb-2 border-b-2 border-blue-100 mb-4' : 'text-base font-semibold text-slate-900 mb-2.5'}`}>
+                <HeadingTag className={`flex-1 flex items-center gap-2 ${depth === 0 ? 'text-xl font-semibold text-slate-900 pb-2 border-b-2 border-blue-100 mb-4 dark:border-blue-900/40 dark:text-slate-200' : 'text-base font-semibold text-slate-900 mb-2.5'}`}>
                     <a href={`#section-${section.slug}`} className="hover:text-blue-600 transition-colors">
                         {section.title}
                     </a>
@@ -68,7 +68,7 @@ function SectionBlock({ section, depth, universeSlug, onDelete, onEdit, editingI
             {editingId === section.id && renderEditForm ? (
                 <div className="mt-2">{renderEditForm(section)}</div>
             ) : section.section_type === 'quote' && section.content ? (
-                <blockquote className="relative border-l-4 border-blue-200 bg-blue-50/50 pl-8 py-4 my-4 italic text-sm text-slate-700 rounded-r-md">
+                <blockquote className="relative border-l-4 border-blue-200 bg-blue-50/50 pl-8 py-4 my-4 italic text-sm text-slate-700 rounded-r-md dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-slate-300">
                     <span className="absolute left-2 top-1 text-4xl text-blue-200 font-serif leading-none select-none" aria-hidden="true">&#8220;</span>
                     {section.content}
                 </blockquote>

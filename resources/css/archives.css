@@ -1058,3 +1058,38 @@
     repeating-linear-gradient(90deg, rgba(100,116,139,0.09), rgba(100,116,139,0.09) 1px, transparent 1px, transparent 32px);
   background-color: var(--arc-surface-alt);
 }
+
+/* Custom Leaflet tooltips */
+.arc-map-tooltip {
+  background: var(--arc-surface) !important;
+  color: var(--arc-text) !important;
+  border: 1px solid var(--arc-border) !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace) !important;
+  font-size: 10px !important;
+  line-height: 1.4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  white-space: nowrap;
+}
+.arc-map-tooltip::before {
+  border-top-color: var(--arc-border) !important;
+}
+.leaflet-tooltip-bottom.arc-map-tooltip::before {
+  border-bottom-color: var(--arc-border) !important;
+  border-top-color: transparent !important;
+}
+.leaflet-tooltip-left.arc-map-tooltip::before {
+  border-left-color: var(--arc-border) !important;
+  border-top-color: transparent !important;
+}
+.leaflet-tooltip-right.arc-map-tooltip::before {
+  border-right-color: var(--arc-border) !important;
+  border-top-color: transparent !important;
+}
+
+/* Legend / filter sidebar animation */
+.arc-map-legend {
+  transition: width 0.2s ease, opacity 0.15s ease;
+  overflow: hidden;
+}

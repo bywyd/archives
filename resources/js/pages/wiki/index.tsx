@@ -14,7 +14,7 @@ export default function WikiIndex({ universes }: Props) {
                 <meta name="description" content="Browse all fictional universes in the Archives wiki." />
             </Head>
 
-            <h1 className="mb-6 text-xl font-bold text-slate-900">All Universes</h1>
+            <h1 className="mb-6 text-xl font-bold text-slate-900 dark:text-slate-100">All Universes</h1>
 
             <div className="stagger-children grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {universes.map((u) => {
@@ -23,7 +23,7 @@ export default function WikiIndex({ universes }: Props) {
                         <Link
                             key={u.id}
                             href={`/w/${u.slug}`}
-                            className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                            className="group overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                         >
                             {banner ? (
                                 <div className="overflow-hidden">
@@ -40,13 +40,13 @@ export default function WikiIndex({ universes }: Props) {
                                 </div>
                             )}
                             <div className="p-4">
-                                <h2 className="text-sm font-semibold text-slate-900 transition-colors group-hover:text-blue-600">
+                                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 transition-colors group-hover:text-blue-600">
                                     {u.name}
                                 </h2>
                                 {u.description && (
-                                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{u.description}</p>
+                                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{u.description}</p>
                                 )}
-                                <div className="mt-3 flex gap-3 text-[11px] text-slate-400">
+                                <div className="mt-3 flex gap-3 text-[11px] text-slate-400 dark:text-slate-500">
                                     <span className="flex items-center gap-1"><BookOpen className="size-3" /> {u.entities_count} entities</span>
                                     <span className="flex items-center gap-1"><Clock className="size-3" /> {u.timelines_count} timelines</span>
                                 </div>
@@ -57,9 +57,9 @@ export default function WikiIndex({ universes }: Props) {
             </div>
 
             {universes.length === 0 && (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 py-14 px-6">
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-14 px-6">
                     <Globe className="mx-auto mb-3 size-10 text-slate-400" />
-                    <p className="text-sm text-slate-500">No universes yet.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No universes yet.</p>
                 </div>
             )}
         </WikiLayout>

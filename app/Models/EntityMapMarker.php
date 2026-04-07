@@ -38,6 +38,7 @@ class EntityMapMarker extends Model
             if ($floor?->entity_id) {
                 // Flush map entity's show cache.
                 Cache::forget("entities:{$floor->entity_id}:show");
+                Cache::forget("entities:{$floor->entity_id}:map");
 
                 // Also flush parent entity's show cache (the entity that has-map this map entity).
                 $hasMapTypeId = MetaEntityRelationType::where('slug', 'has-map')->value('id');
@@ -54,6 +55,7 @@ class EntityMapMarker extends Model
         };
 
         static::saved($flush);
+        static::updated($flush);
         static::deleted($flush);
     }
 

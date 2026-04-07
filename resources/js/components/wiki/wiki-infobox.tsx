@@ -1,5 +1,4 @@
-﻿import { Link } from '@inertiajs/react';
-import type { ApiEntityAttribute, ApiImage } from '@/types/api';
+﻿import type { ApiEntityAttribute, ApiImage } from '@/types/api';
 
 type Props = {
     name: string;
@@ -16,56 +15,47 @@ type Props = {
 export function WikiInfobox({ name, image, attributes, type, status, statusColor, aliases, children, short_description }: Props) {
     const grouped = groupAttributes(attributes);
 
-    return (
-        <div className="float-right w-72 ml-8 mb-6  border border-blue-200 rounded-lg overflow-hidden text-[0.8125rem] shadow-sm max-md:float-none max-md:w-full max-md:ml-0">
-            {/* Title */}
-            <div className=" px-3.5 py-2.5 font-semibold text-[0.8125rem] text-center border-b border-blue-200">{name}</div>
+    const hasContent = !!(image || short_description || type || status || (aliases && aliases.length > 0) || attributes.length > 0);
+    if (!hasContent) return null;
 
-            {/* Image */}
+    return (
+        <div className="w-full space-y-4 text-[0.8125rem]">
+            {/* Entity name */}
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-2">
+                {name}
+            </p>
+
+            {/* Profile image */}
             {image && (
-                <div className="relative">
+                <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700/60 shadow-sm">
                     <img
                         src={image.url}
                         alt={image.alt_text ?? name}
-                        className="w-full max-h-[28rem] object-cover object-top block border-b border-blue-200"
+                        className="w-full object-cover object-top block"
                         loading="lazy"
                     />
                     {image.caption && (
-                        <div className="border-b border-blue-200 bg-slate-50 px-3 py-1.5 text-center text-[11px] italic text-slate-500">
+                        <div className="border-t border-slate-200 dark:border-slate-700/60 px-3 py-1.5 text-center text-[11px] italic text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50">
                             {image.caption}
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Short Description */}
-            {short_description && (
-                <div className=" px-3.5 py-2.5">
-                    <div className="text-[0.625rem] font-bold uppercase tracking-wider text-blue-600 mb-1.5 pb-1 border-b border-blue-100">Description</div>
-                    <div className="text-slate-700 text-sm">{short_description}</div>
-                </div>
-            )}
-
             {/* Type & Status */}
             {(type || status) && (
-                <div className=" px-3.5 py-2.5">
-                    {/* <div className="text-[0.625rem] font-bold uppercase tracking-wider text-blue-600 mb-1.5 pb-1 border-b border-blue-100">Statuses & Types</div> */}
-                    {type && (
-                        <div className="flex justify-between py-1 gap-3">
-                            <span className="text-slate-500 whitespace-nowrap shrink-0 text-xs">Type</span>
-                            <span className="text-right font-medium text-slate-900 break-words">{type}</span>
-                        </div>
-                    )}
+                <div>
+                    {type && <InfoRow label="Type" value={type} />}
                     {status && (
-                        <div className="flex justify-between py-1 gap-3">
-                            <span className="text-slate-500 whitespace-nowrap shrink-0 text-xs">Status</span>
-                            <span className="text-right font-medium text-slate-900 break-words">
-                                <span
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[0.625rem] font-semibold rounded-full uppercase tracking-wide border border-slate-200 text-slate-500 bg-white whitespace-nowrap"
-                                    style={statusColor ? { borderColor: statusColor, color: statusColor, background: statusColor + '10' } : undefined}
-                                >
-                                    {status}
-                                </span>
+                        <div className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-r-md border-l-2 border-transparent mb-px">
+                            <span className="text-slate-400 dark:text-slate-500 text-xs shrink-0">Status</span>
+                            <span
+                                className={statusColor
+                                    ? 'inline-flex items-center px-2 py-0.5 text-[0.625rem] font-bold rounded-full uppercase tracking-wide border whitespace-nowrap'
+                                    : 'inline-flex items-center px-2 py-0.5 text-[0.625rem] font-bold rounded-full uppercase tracking-wide border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 whitespace-nowrap'}
+                                style={statusColor ? { borderColor: statusColor, color: statusColor, background: statusColor + '15' } : undefined}
+                            >
+                                {status}
                             </span>
                         </div>
                     )}
@@ -74,11 +64,11 @@ export function WikiInfobox({ name, image, attributes, type, status, statusColor
 
             {/* Aliases */}
             {aliases && aliases.length > 0 && (
-                <div className=" px-3.5 py-2.5">
-                    <div className="text-[0.625rem] font-bold uppercase tracking-wider text-blue-600 mb-1.5 pb-1 border-b border-blue-100">Also known as</div>
-                    <div className="flex flex-wrap gap-1">
+                <div>
+                    <SectionLabel>Also known as</SectionLabel>
+                    <div className="pl-2 flex flex-wrap gap-1 mt-2">
                         {aliases.map((alias, i) => (
-                            <span key={i} className="rounded-md bg-white px-1.5 py-0.5 text-xs text-slate-500">
+                            <span key={i} className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-1.5 py-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 {alias}
                             </span>
                         ))}
@@ -86,24 +76,64 @@ export function WikiInfobox({ name, image, attributes, type, status, statusColor
                 </div>
             )}
 
+            {/* Short description */}
+            {short_description && (
+                <div>
+                    <SectionLabel>Description</SectionLabel>
+                    <p className="pl-2 mt-2 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{short_description}</p>
+                </div>
+            )}
+
             {/* Grouped attributes */}
             {Object.entries(grouped).map(([group, attrs]) => (
-                <div key={group} className=" px-3.5 py-2.5 last:border-b-0">
-                    {group !== '_ungrouped' && (
-                        <div className="text-[0.625rem] font-bold uppercase tracking-wider text-blue-600 mb-1.5 pb-1 border-b border-blue-100">{group}</div>
-                    )}
-                    {attrs.map((attr) => (
-                        <div key={attr.id} className="flex justify-between py-1 gap-3">
-                            <span className="text-slate-500 whitespace-nowrap shrink-0 text-xs">{attr.definition.name}</span>
-                            <span className="text-right font-medium text-slate-900 break-words">{attr.value ?? '\u2014'}</span>
-                        </div>
-                    ))}
+                <div key={group}>
+                    {group !== '_ungrouped' && <SectionLabel>{group}</SectionLabel>}
+                    <div className={group !== '_ungrouped' ? 'mt-1.5' : ''}>
+                        {attrs.map((attr) => (
+                            <InfoRow
+                                key={attr.id}
+                                label={attr.definition.name}
+                                value={formatAttributeValue(attr)}
+                            />
+                        ))}
+                    </div>
                 </div>
             ))}
 
             {children}
         </div>
     );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-2 pl-2 mb-1">
+            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
+                {children}
+            </p>
+            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+        </div>
+    );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-center justify-between gap-3 py-1.5 px-2 rounded-r-md border-l-2 border-transparent hover:border-slate-300 hover:bg-slate-50 dark:hover:border-slate-600 dark:hover:bg-slate-800/50 mb-px transition-colors">
+            <span className="text-slate-400 dark:text-slate-500 text-xs shrink-0 whitespace-nowrap">{label}</span>
+            <span className="text-right text-xs font-medium text-slate-700 dark:text-slate-300 break-words min-w-0">{value || '—'}</span>
+        </div>
+    );
+}
+
+function formatAttributeValue(attr: ApiEntityAttribute): string {
+    if (!attr.value) return '';
+    if (attr.definition?.data_type === 'json') {
+        try {
+            const parsed = JSON.parse(attr.value);
+            if (Array.isArray(parsed)) return parsed.join(', ');
+        } catch { /* fall through */ }
+    }
+    return attr.value;
 }
 
 function groupAttributes(attributes: ApiEntityAttribute[]) {

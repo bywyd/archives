@@ -1819,7 +1819,7 @@ function MapsEditor({
                 entityId: entity.id,
                 mapId,
             },
-            size: { width: 900, height: 650 },
+            maximized: true,
         });
     };
 

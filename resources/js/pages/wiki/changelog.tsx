@@ -2,6 +2,7 @@
 import { Clock, FileEdit, History, Layers, Plus, RotateCcw, Trash2, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { WikiPagination } from '@/components/wiki/wiki-pagination';
 import WikiLayout from '@/layouts/wiki-layout';
 import { useAuth } from '@/hooks/use-auth';
 import * as api from '@/lib/api';
@@ -22,8 +23,8 @@ type RevisionItem = {
 };
 
 type LaravelPaginator<T> = PaginatedResponse<T> & {
-    prev_page_url: string | null;
-    next_page_url: string | null;
+    prev_page_url?: string | null;
+    next_page_url?: string | null;
 };
 
 type Props = {
@@ -93,11 +94,11 @@ function RevisionRow({ rev, canRestore }: { rev: RevisionItem; canRestore: boole
         <div className="flex items-start gap-3">
             {/* Timeline dot */}
             <div className="relative mt-3 flex shrink-0 flex-col items-center">
-                <div className={`size-2 rounded-full ring-2 ring-white ${cfg.dot}`} />
+                <div className={`size-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${cfg.dot}`} />
             </div>
 
             {/* Card */}
-            <div className="mb-1.5 flex flex-1 min-w-0 items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs shadow-sm transition-shadow hover:shadow-md">
+            <div className="mb-1.5 flex flex-1 min-w-0 items-center gap-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-3.5 py-2.5 text-xs shadow-sm transition-shadow hover:shadow-md">
                 {/* Action badge */}
                 <span className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${cfg.color}`}>
                     <cfg.Icon className="size-2.5" />
@@ -105,7 +106,7 @@ function RevisionRow({ rev, canRestore }: { rev: RevisionItem; canRestore: boole
                 </span>
 
                 {/* Model type */}
-                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                <span className="shrink-0 rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
                     {modelLabel}
                 </span>
 
@@ -118,7 +119,7 @@ function RevisionRow({ rev, canRestore }: { rev: RevisionItem; canRestore: boole
                         {rev.entity_name}
                     </Link>
                 ) : rev.entity_name ? (
-                    <span className="min-w-0 truncate font-semibold text-slate-700">{rev.entity_name}</span>
+                    <span className="min-w-0 truncate font-semibold text-slate-700 dark:text-slate-300">{rev.entity_name}</span>
                 ) : null}
 
                 {/* Fields changed */}
@@ -129,7 +130,7 @@ function RevisionRow({ rev, canRestore }: { rev: RevisionItem; canRestore: boole
                 )}
 
                 {/* Right-side meta */}
-                <div className="ml-auto flex shrink-0 items-center gap-3 text-[10px] text-slate-400">
+                <div className="ml-auto flex shrink-0 items-center gap-3 text-[10px] text-slate-400 dark:text-slate-500">
                     {rev.user_name && (
                         <span className="flex items-center gap-1">
                             <User className="size-2.5" />
@@ -151,8 +152,8 @@ function RevisionRow({ rev, canRestore }: { rev: RevisionItem; canRestore: boole
                             onBlur={() => setConfirming(false)}
                             className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-semibold transition-colors disabled:opacity-50 ${
                                 confirming
-                                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                                    : 'border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+                                    ? 'border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-800 dark:hover:bg-amber-900/30 dark:hover:text-amber-400'
                             }`}
                             title="Restore this entity"
                         >
@@ -180,15 +181,21 @@ export default function ChangelogPage({ revisions }: Props) {
 
     const total = revisions.total ?? revisions.meta?.total ?? revisions.data.length;
 
-    
-
-    
-    const totalPages = revisions.last_page ?? revisions.meta?.last_page ?? 1;
-    const currentPage = revisions.current_page ?? revisions.meta?.current_page ?? 1;
-    const pageNumbers = [];
-    for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-    }
+    const paginationMeta = revisions.meta ?? {
+        current_page: revisions.current_page ?? 1,
+        last_page: revisions.last_page ?? 1,
+        from: null,
+        path: window.location.pathname,
+        per_page: revisions.per_page ?? 30,
+        to: null,
+        total: total,
+    };
+    const paginationLinks = revisions.links ?? {
+        first: null,
+        last: null,
+        prev: revisions.prev_page_url ?? null,
+        next: revisions.next_page_url ?? null,
+    };
 
     return (
         <WikiLayout breadcrumbs={[{ title: 'Wiki', href: '/w' }, { title: 'Changelog' }]} wide>
@@ -198,14 +205,14 @@ export default function ChangelogPage({ revisions }: Props) {
 
             {/* Header */}
             <div className="mb-5 flex flex-wrap items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-                    <History className="size-4 text-blue-600" />
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                    <History className="size-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-slate-900">Changelog</h1>
-                    <p className="text-xs text-slate-500">Recent changes across all universes</p>
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Changelog</h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Recent changes across all universes</p>
                 </div>
-                <span className="ml-auto rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm">
+                <span className="ml-auto rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-400 shadow-sm">
                     {total.toLocaleString()} record{total !== 1 ? 's' : ''}
                 </span>
             </div>
@@ -221,8 +228,8 @@ export default function ChangelogPage({ revisions }: Props) {
                             onClick={() => setActionFilter(opt.value)}
                             className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
                                 actionFilter === opt.value
-                                    ? 'border-blue-300 bg-blue-50 text-blue-700'
-                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                                    ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
                             {opt.label}
@@ -230,7 +237,7 @@ export default function ChangelogPage({ revisions }: Props) {
                     ))}
                 </div>
                 {actionFilter && (
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
                         Showing {filtered.length} of {revisions.data.length} on this page
                     </span>
                 )}
@@ -238,11 +245,11 @@ export default function ChangelogPage({ revisions }: Props) {
 
             {/* Revision list grouped by date */}
             {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 py-14 px-6 text-center">
-                    <History className="size-8 text-slate-300" />
-                    <p className="font-medium text-slate-500">No revisions found</p>
+                <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-14 px-6 text-center">
+                    <History className="size-8 text-slate-300 dark:text-slate-600" />
+                    <p className="font-medium text-slate-500 dark:text-slate-400">No revisions found</p>
                     {actionFilter && (
-                        <p className="text-xs text-slate-400">Try removing the filter to see all changes.</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">Try removing the filter to see all changes.</p>
                     )}
                 </div>
             ) : (
@@ -251,17 +258,17 @@ export default function ChangelogPage({ revisions }: Props) {
                         <div key={date}>
                             {/* Date separator */}
                             <div className="mb-3 flex items-center gap-3">
-                                <div className="h-px flex-1 bg-slate-200" />
-                                <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                                <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                                     {formatGroupDate(date)}
                                 </span>
-                                <div className="h-px flex-1 bg-slate-200" />
+                                <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
                             </div>
 
                             {/* Timeline connector + rows */}
                             <div className="relative pl-3.5">
                                 {/* Vertical line */}
-                                <div className="absolute left-4 top-3 bottom-3 w-px bg-slate-200" />
+                                <div className="absolute left-4 top-3 bottom-3 w-px bg-slate-200 dark:bg-slate-700" />
 
                                 <div>
                                     {entries.map((rev) => (
@@ -274,49 +281,7 @@ export default function ChangelogPage({ revisions }: Props) {
                 </div>
             )}
 
-            {/* Pagination */}
-            {(revisions.last_page ?? revisions.meta?.last_page ?? 1) > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-2">
-                    {revisions.prev_page_url && (
-                        <Link
-                            href={revisions.prev_page_url}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow"
-                        >
-                            Previous
-                        </Link>
-                    )}
-                    {/* <span className="text-xs text-slate-500">
-                        Page {revisions.current_page ?? revisions.meta?.current_page} of {revisions.last_page ?? revisions.meta?.last_page}
-                    </span> */}
-
-                    {/* rendering page numbers with navigation */}
-                    <div className="flex items-center gap-1">
-                        {pageNumbers.map((page) => (
-                            <Link
-                                key={page}
-                                href={`${window.location.pathname}?page=${page}`}
-                                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-all ${
-                                    page === currentPage
-                                        ? 'border-blue-300 bg-blue-50 text-blue-700'
-                                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-900'
-                                }`}
-                            >
-                                {page}
-                            </Link>
-                        ))}
-                    </div>
-                    
-
-                    {revisions.next_page_url && (
-                        <Link
-                            href={revisions.next_page_url}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900 hover:shadow"
-                        >
-                            Next
-                        </Link>
-                    )}
-                </div>
-            )}
+            <WikiPagination meta={paginationMeta} links={paginationLinks} />
         </WikiLayout>
     );
 }
