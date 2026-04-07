@@ -1364,9 +1364,10 @@ export function OperationsMap() {
                                         fill="#dde4ef"
                                         strokeWidth={0.4}
                                         style={{
-                                            default: { outline: 'none' },
+                                            default: { outline: '#dde4ef', stroke: "#dde4ef" },
                                             hover:   { outline: 'none', fill: '#cdd7e8' },
                                             pressed: { outline: 'none' },
+                                            
                                         }}
                                     />
                                 ))
