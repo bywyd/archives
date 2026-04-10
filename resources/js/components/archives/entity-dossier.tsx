@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileText, GitBranch, GitBranchIcon, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
+import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileSearch, FileText, GitBranch, GitBranchIcon, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntityAffiliationHistory } from '@/components/archives/entity-affiliation-history';
 import { EntityAliases } from '@/components/archives/entity-aliases';
@@ -245,6 +245,19 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                     }
                 />
                 <ActionButton
+                    icon={<FileSearch className="size-3" />}
+                    title="Auto-briefing"
+                    onClick={() =>
+                    openWindow({
+                        type: 'entity-briefing',
+                        title: `BRIEFING - ${entity.name.toUpperCase()}`,
+                        icon: 'BR',
+                        props: { key: `briefing-${universeId}-${entity.slug}`, universeId, entitySlug: entity.slug },
+                        size: { width: 680, height: 640 },
+                    })
+                    }
+                />
+                <ActionButton
                     icon={<Scale className="size-3" />}
                     title="Compare entities"
                     onClick={() =>
@@ -355,7 +368,7 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                             onClick={() =>
                                 openWindow({
                                     type: 'event-reconstruction',
-                                    title: `RECONSTRUCTION — ${entity.name}`,
+                                    title: `RECONSTRUCTION - ${entity.name}`,
                                     icon: 'RC',
                                     props: {
                                         key: `reconstruction-${universeId}-${entity.slug}`,
@@ -372,7 +385,7 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                             onClick={() =>
                                 openWindow({
                                     type: 'temporal-slider',
-                                    title: `TEMPORAL — ${entity.name}`,
+                                    title: `TEMPORAL - ${entity.name}`,
                                     icon: 'TS',
                                     props: {
                                         key: `temporal-${universeId}-${entity.slug}`,

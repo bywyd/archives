@@ -86,6 +86,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('entities/{entity}/related-by-tag', [EntityController::class, 'relatedByTag']);
         Route::get('entities/{entity}/revisions', [EntityController::class, 'revisions']);
         Route::get('entities/{entity}/reconstruction', [EntityController::class, 'reconstruction']);
+        Route::get('entities/{entity}/briefing', [EntityController::class, 'briefing']);
     
         // Entity maps (read)
         Route::get('entities/{entity}/maps', [MapController::class, 'index']);

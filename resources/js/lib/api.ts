@@ -44,6 +44,7 @@ import type {
     ApiPermission,
     ApiAdminUser,
     ApiMapData,
+    ApiEntityBriefing,
     PaginatedResponse,
 } from '@/types/api';
 
@@ -778,4 +779,10 @@ export function restoreEntity(universeId: number, entityId: number) {
         `/universes/${universeId}/entities/${entityId}/restore`,
         {},
     );
+}
+
+//  Entity Briefing 
+
+export function fetchEntityBriefing(universeId: number, entitySlug: string) {
+    return get<{ data: ApiEntityBriefing }>(`/universes/${universeId}/entities/${entitySlug}/briefing`);
 }

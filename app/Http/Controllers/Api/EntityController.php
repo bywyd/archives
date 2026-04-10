@@ -687,4 +687,37 @@ class EntityController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Auto-briefing, compile a structured dossier snapshot for the given entity.
+     * Result is cached for 1800 seconds and flushed on entity save.
+     */
+    public function briefing(Universe $universe, Entity $entity): \Illuminate\Http\JsonResponse
+    {
+        $data = $entity->rememberCache('briefing', 1800, function () use ($entity) {
+            $entity->loadMissing([
+                'entityType',
+                'entityStatus',
+                'aliases',
+                'tags',
+                'categories',
+                'mediaSources',
+                'timelines',
+                'powerProfiles',
+                'infectionRecords.pathogen',
+                'mutationStages',
+                'affiliationHistory.organization',
+                'outgoingRelations',
+                'incomingRelations',
+                'deathRecords',
+                'consciousnessRecords.vessel',
+                'intelligenceRecords',
+                'quotes',
+            ]);
+
+            return (new \App\Services\EntityBriefingService())->generate($entity);
+        });
+
+        return response()->json(['data' => $data]);
+    }
 }

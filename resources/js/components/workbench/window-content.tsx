@@ -28,6 +28,7 @@ const LoginWindow             = lazy(() => import('@/components/auth/login-windo
 const EntityRevisionsWindow   = lazy(() => import('@/components/archives/entity-revisions-window').then((m) => ({ default: m.EntityRevisionsWindow })));
 const EventReconstruction     = lazy(() => import('@/components/archives/event-reconstruction').then((m) => ({ default: m.EventReconstruction })));
 const TemporalSlider          = lazy(() => import('@/components/archives/temporal-slider').then((m) => ({ default: m.TemporalSlider })));
+const EntityBriefing          = lazy(() => import('@/components/archives/entity-briefing').then((m) => ({ default: m.EntityBriefing })));
 
 function WindowFallback() {
     return (
@@ -228,6 +229,13 @@ function renderContent(win: WindowState) {
                 <TemporalSlider
                     universeId={win.props.universeId as number}
                     incidentSlug={win.props.incidentSlug as string}
+                />
+            );
+        case 'entity-briefing':
+            return (
+                <EntityBriefing
+                    universeId={win.props.universeId as number}
+                    entitySlug={win.props.entitySlug as string}
                 />
             );
         default:

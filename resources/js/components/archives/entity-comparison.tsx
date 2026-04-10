@@ -119,7 +119,7 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
     const gridRef = useRef<HTMLDivElement>(null);
     const { openWindow } = useWindowStore();
 
-    // Load initial entities — runs once on mount using the captured ref
+    // Load initial entities  runs once on mount using the captured ref
     useEffect(() => {
         if (initialSlugsRef.current.length === 0) return;
         initialSlugsRef.current.forEach((slug, idx) => {
@@ -202,7 +202,7 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
 
     const entitiesWithData = slots.filter((s) => s.entity !== null);
 
-    // Diff keys — one normalized string per row per slot
+    // Diff keys  one normalized string per row per slot
     const diffKeys = {
         status:        slots.map((s) => s.entity?.entity_status?.slug ?? ''),
         type:          slots.map((s) => s.entity?.entity_type?.slug ?? ''),
@@ -319,7 +319,7 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
                                     onOpenDossier={() =>
                                         openWindow({
                                             type: 'entity-dossier',
-                                            title: `${slot.entity!.name} — DOSSIER`,
+                                            title: `${slot.entity!.name} - DOSSIER`,
                                             icon: slot.entity!.entity_type?.icon ?? 'EN',
                                             props: {
                                                 key: `entity-${universeId}-${slot.entity!.slug}`,
@@ -1146,7 +1146,7 @@ function CompareCell({ children, diff = false }: { children: React.ReactNode; di
 }
 
 function Dash() {
-    return <span className="arc-mono text-[10px] text-[var(--arc-text-muted)] opacity-40">—</span>;
+    return <span className="arc-mono text-[10px] text-[var(--arc-text-muted)] opacity-40">-</span>;
 }
 
 function StatValue({ value, suffix = '' }: { value: number; suffix?: string }) {
