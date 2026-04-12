@@ -27,7 +27,7 @@ type Props = Record<string, unknown>;
 type SortOption = 'relevance' | 'name-asc' | 'name-desc' | 'newest' | 'oldest';
 
 export function SearchTerminal(_props: Props) {
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(_props.initialQuery as string || '');
     const [results, setResults] = useState<ApiSearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -47,20 +47,6 @@ export function SearchTerminal(_props: Props) {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
 
-    // Load filter options
-    useEffect(() => {
-        Promise.all([
-            api.fetchEntityTypes(),
-            api.fetchEntityStatuses(),
-            api.fetchUniverses(),
-        ])
-            .then(([etRes, esRes, uRes]) => {
-                setEntityTypes(etRes.data);
-                setEntityStatuses(esRes.data);
-                setUniverses(uRes.data);
-            })
-            .catch(() => {});
-    }, []);
 
     // Auto-focus
     useEffect(() => {
@@ -88,6 +74,24 @@ export function SearchTerminal(_props: Props) {
         },
         [],
     );
+    
+    // Load filter options
+    useEffect(() => {
+        Promise.all([
+            api.fetchEntityTypes(),
+            api.fetchEntityStatuses(),
+            api.fetchUniverses(),
+        ])
+            .then(([etRes, esRes, uRes]) => {
+                setEntityTypes(etRes.data);
+                setEntityStatuses(esRes.data);
+                setUniverses(uRes.data);
+            })
+            .catch(() => {});
+        if (query !== '') {
+            performSearch(query);
+        }
+    }, []);
 
     // Filtered and sorted results
     const filtered = useMemo(() => {
