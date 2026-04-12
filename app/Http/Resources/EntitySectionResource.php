@@ -17,8 +17,8 @@ class EntitySectionResource extends JsonResource
             'sort_order' => $this->sort_order,
             'is_collapsible' => $this->is_collapsible,
             'parent_id' => $this->parent_id,
-            'children' => EntitySectionResource::collection($this->whenLoaded('children'))->resolve(),
-            'images' => ImageResource::collection($this->whenLoaded('images'))->resolve(),
+            'children' => $this->whenLoaded('children', fn () => EntitySectionResource::collection($this->children)->resolve(), []),
+            'images' => $this->whenLoaded('images', fn () => ImageResource::collection($this->images)->resolve(), []),
         ];
     }
 }
