@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0] - 2026-04-23
+
+### Added
+
+- Auto breifing feature added for entities
+
+### Improved
+
+- Improved Archives UI Operations Map
+
+### Fixed
+
+- Fixed Entity Comperison component
+- Fixed where application fails to load children of Entity Sections that linked to another Entity Section
+
 ## [1.3.0] - 2026-04-07
 
 ### Added
