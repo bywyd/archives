@@ -32,6 +32,7 @@ export type WindowType =
     | 'entity-revisions'
     | 'event-reconstruction'
     | 'temporal-slider'
+    | 'entity-briefing'
     | 'login';
 
 export type WindowState = {

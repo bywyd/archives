@@ -908,3 +908,107 @@ export type ApiEntityMapRegion = {
     metadata: Record<string, unknown> | null;
     sort_order: number;
 } & Timestamps;
+
+// --- Entity Briefing ---
+
+export type ApiEntityBriefingAlias = {
+    alias: string;
+    context: string | null;
+};
+
+export type ApiEntityBriefingPowerProfile = {
+    name: string;
+    level: number;
+    max_level: number;
+    status: string | null;
+    category: string | null;
+    source: string | null;
+    description: string | null;
+    fictional_date_acquired: string | null;
+};
+
+export type ApiEntityBriefingMutation = {
+    stage_number: number;
+    name: string | null;
+    threat_level: string | null;
+    abilities_gained: string[];
+    abilities_lost: string[];
+    physical_changes: string[];
+};
+
+export type ApiEntityBriefingInfection = {
+    pathogen: string | null;
+    status: string | null;
+    severity: string | null;
+    infection_method: string | null;
+    symptoms_exhibited: string[];
+};
+
+export type ApiEntityBriefingAffiliation = {
+    organization: string | null;
+    role: string | null;
+    rank: string | null;
+    status: string | null;
+    fictional_start: string | null;
+    fictional_end: string | null;
+};
+
+export type ApiEntityBriefingDeath = {
+    cause: string | null;
+    death_type: string | null;
+    fictional_date: string | null;
+    confirmed: boolean;
+    circumstances: string | null;
+    revived: boolean;
+    revival_method: string | null;
+    revival_circumstances: string | null;
+};
+
+export type ApiEntityBriefingQuote = {
+    content: string;
+    context: string | null;
+    is_featured: boolean;
+};
+
+export type ApiEntityBriefing = {
+    subject: {
+        name: string;
+        slug: string;
+        aliases: ApiEntityBriefingAlias[];
+        type: { name: string; color: string | null; icon: string | null } | null;
+        status: { name: string; color: string | null } | null;
+        description: string | null;
+        is_featured: boolean;
+        is_locked: boolean;
+    };
+    threat_assessment: {
+        top_power: ApiEntityBriefingPowerProfile | null;
+        active_infection: ApiEntityBriefingInfection | null;
+        mutations: ApiEntityBriefingMutation[];
+        mutation_stage_count: number;
+        peak_threat_level: string | null;
+    };
+    network: {
+        outgoing_relations: number;
+        incoming_relations: number;
+        active_affiliations: ApiEntityBriefingAffiliation[];
+        timelines: string[];
+    };
+    history: {
+        deaths: ApiEntityBriefingDeath[];
+        latest_consciousness: {
+            status: string | null;
+            transfer_method: string | null;
+            vessel: string | null;
+            description: string | null;
+        } | null;
+        intelligence_record_count: number;
+    };
+    classification: {
+        tags: string[];
+        categories: string[];
+        media_source_count: number;
+    };
+    notable_quotes: ApiEntityBriefingQuote[];
+    generated_at: string;
+};

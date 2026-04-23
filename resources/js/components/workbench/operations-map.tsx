@@ -10,7 +10,7 @@ import type { Auth } from '@/types/auth';
 import type { ApiEntityLocation, ApiUniverse, ApiEntitySummary, ApiMapRecentEvent } from '@/types/api';
 import type { PinnedItem, HistoryEntry } from '@/stores/history-store';
 import AppLogoIcon from '../app-logo-icon';
-import { Brain, Clock, Github, Pin, RefreshCw, ScrollIcon, Search, Zap } from 'lucide-react';
+import { Brain, Clock, Github, LogIn, Pin, RefreshCw, ScrollIcon, Search, UserPlus, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -491,105 +491,159 @@ function MapLegend({ entityPinCount, universeCount }: MapLegendProps) {
 }
 
 
-//  Quick-access action buttons (compact) 
-type QuickActionsProps = {
-    onSearch: () => void;
-    onAnalysis: () => void;
-    onOpenLicenseDisclaimer: () => void;
+//  Expandable inline search widget 
+type ExpandableSearchProps = {
+    onSearch: (query: string) => void;
+    onAnalysis: (query: string) => void;
 };
 
-function QuickActions({ onSearch, onAnalysis, onOpenLicenseDisclaimer }: QuickActionsProps) {
-    const btnBase: React.CSSProperties = {
+function ExpandableSearch({ onSearch, onAnalysis }: ExpandableSearchProps) {
+    const [expanded, setExpanded] = useState(false);
+    const [query, setQuery] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (expanded) inputRef.current?.focus();
+    }, [expanded]);
+
+    // Close on ESC key globally while open
+    useEffect(() => {
+        if (!expanded) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') collapse(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [expanded]);
+
+    const collapse = () => { setExpanded(false); setQuery(''); };
+
+    const handleSearch = () => { if (query.trim()) onSearch(query); else onSearch(''); collapse(); };
+    const handleAnalysis = () => { if (query.trim()) onAnalysis(query); else onAnalysis(''); collapse(); };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') handleSearch();
+    };
+
+    const modeBtnStyle: React.CSSProperties = {
+        flex: 1,
         display: 'flex',
         alignItems: 'center',
-        gap: '0.35rem',
-        padding: '0.4rem 0.6rem',
+        justifyContent: 'center',
+        gap: '0.4rem',
         fontFamily: 'monospace',
-        fontSize: '0.55rem',
-        letterSpacing: '0.08em',
+        fontSize: '0.65rem',
+        letterSpacing: '0.1em',
         textTransform: 'uppercase',
         cursor: 'pointer',
+        padding: '0.55rem 0.5rem',
+        background: 'rgba(30,41,59,0.6)',
+        border: '1px solid rgba(37,99,235,0.2)',
         color: 'rgba(148,163,184,0.85)',
-        background: 'transparent',
-        border: 'none',
-        width: '100%',
-        textAlign: 'left',
-        transition: 'background 0.15s, color 0.15s',
+        transition: 'background 0.15s, color 0.15s, border-color 0.15s',
     };
 
     return (
-        <div className="select-none flex flex-col pointer-events-auto" style={DARK_PANEL_STYLE}>
-            <div className="px-2 py-1.5" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
-                <span className="text-[9px] font-mono tracking-wider uppercase text-blue-400/70">Quick Access</span>
+        <>
+            {/* Compact trigger button in the HUD */}
+            <div className="select-none pointer-events-auto" style={DARK_PANEL_STYLE}>
+                <button
+                    className="w-full px-2.5 py-2 flex items-center gap-2"
+                    onClick={() => setExpanded(true)}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.08)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                    <Search size={10} style={{ color: 'rgba(96,165,250,0.7)', flexShrink: 0 }} />
+                    <span className="text-[9px] font-mono tracking-widest uppercase text-blue-400/70 flex-1 text-left">Search</span>
+                    <span className="text-[8px] font-mono" style={{ color: 'rgba(71,85,105,0.7)' }}>[ _ ]</span>
+                </button>
             </div>
 
-            <button
-                style={btnBase}
-                onClick={onSearch}
-                title="Open Search Terminal"
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.15)';
-                    e.currentTarget.style.color = 'rgba(96,165,250,0.95)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'rgba(148,163,184,0.85)';
-                }}
-            >
-                <Search size={10} />
-                <span>Search</span>
-            </button>
+            {/* Centered overlay — rendered via portal-like fixed positioning */}
+            {expanded && (
+                /* Backdrop — click outside to close */
+                <div
+                    className="fixed inset-0 z-[200] flex items-center justify-center"
+                    style={{ background: 'rgba(2,6,23,0.45)', backdropFilter: 'blur(2px)' }}
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) collapse(); }}
+                >
+                    <div
+                        ref={panelRef}
+                        className="flex flex-col w-[480px] max-w-[90vw]"
+                        style={{
+                            background: 'rgba(10,17,35,0.97)',
+                            border: '1px solid rgba(37,99,235,0.35)',
+                            borderTopWidth: '3px',
+                            borderTopColor: 'rgba(37,99,235,0.65)',
+                            boxShadow: '0 8px 48px rgba(0,0,0,0.55), 0 0 60px rgba(37,99,235,0.08)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(37,99,235,0.15)' }}>
+                            <Search size={11} style={{ color: 'rgba(96,165,250,0.6)', flexShrink: 0 }} />
+                            <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-blue-400/60 flex-1">Intelligence Query Terminal</span>
+                            <button
+                                onClick={collapse}
+                                style={{ color: 'rgba(100,116,139,0.5)', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.15rem', lineHeight: 1 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(148,163,184,0.9)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(100,116,139,0.5)'; }}
+                            >
+                                <X size={13} />
+                            </button>
+                        </div>
 
-            <button
-                style={{ ...btnBase, borderTop: '1px solid rgba(37,99,235,0.08)' }}
-                onClick={onAnalysis}
-                title="Open Intelligence Analysis Engine"
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.15)';
-                    e.currentTarget.style.color = 'rgba(96,165,250,0.95)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'rgba(148,163,184,0.85)';
-                }}
-            >
-                <Brain size={10} />
-                <span>Analysis</span>
-            </button>
+                        {/* Input */}
+                        <div className="px-4 py-4">
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="enter search query..."
+                                className="w-full"
+                                style={{
+                                    background: 'rgba(15,23,42,0.9)',
+                                    border: '1px solid rgba(37,99,235,0.3)',
+                                    borderBottom: '2px solid rgba(37,99,235,0.5)',
+                                    color: '#e2e8f0',
+                                    fontFamily: 'monospace',
+                                    fontSize: '0.95rem',
+                                    padding: '0.6rem 0.75rem',
+                                    outline: 'none',
+                                    letterSpacing: '0.03em',
+                                    width: '100%',
+                                }}
+                            />
+                            <div className="mt-1.5 text-[8px] font-mono tracking-widest uppercase" style={{ color: 'rgba(71,85,105,0.6)' }}>
+                                Press Enter to search · ESC to close
+                            </div>
+                        </div>
 
-            {/* <button
-                style={{ ...btnBase, borderTop: '1px solid rgba(37,99,235,0.08)' }}
-                onClick={onOpenLicenseDisclaimer}
-                title="Open License Disclaimer"
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.15)';
-                    e.currentTarget.style.color = 'rgba(96,165,250,0.95)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'rgba(148,163,184,0.85)';
-                }}
-            >
-                <ScrollIcon size={10} />
-                <span>Disclaimer</span>
-            </button> */}
-
-            {/* <a href="https://github.com/bywyd/archives" target="_blank" rel="noopener noreferrer"
-                style={{ ...btnBase, borderTop: '1px solid rgba(37,99,235,0.08)' }}
-                title="Open GitHub Repository"
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(37,99,235,0.15)';
-                    e.currentTarget.style.color = 'rgba(96,165,250,0.95)';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'rgba(148,163,184,0.85)';
-                }}
-            >
-                <Github size={10} style={{ color: 'rgba(148,163,184,0.75)' }} />
-                Git Repo
-            </a> */}
-        </div>
+                        {/* Mode buttons */}
+                        <div className="px-4 pb-4 flex gap-2">
+                            <button
+                                style={modeBtnStyle}
+                                onClick={handleSearch}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.2)'; e.currentTarget.style.color = 'rgba(147,197,253,1)'; e.currentTarget.style.borderColor = 'rgba(37,99,235,0.5)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,41,59,0.6)'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'; }}
+                            >
+                                <Search size={10} />
+                                Search Terminal
+                            </button>
+                            <button
+                                style={modeBtnStyle}
+                                onClick={handleAnalysis}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(37,99,235,0.2)'; e.currentTarget.style.color = 'rgba(147,197,253,1)'; e.currentTarget.style.borderColor = 'rgba(37,99,235,0.5)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30,41,59,0.6)'; e.currentTarget.style.color = 'rgba(148,163,184,0.85)'; e.currentTarget.style.borderColor = 'rgba(37,99,235,0.2)'; }}
+                            >
+                                <Brain size={10} />
+                                Analysis Engine
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -864,7 +918,7 @@ function StatusBar({ markerCount, universeCount, entityPinCount, onLicenseDiscla
     }, []);
 
     return (
-        <div className="absolute inset-x-0 bottom-0 z-20 h-7 flex items-center gap-6 px-4 font-mono text-[10px] select-none uppercase"
+        <div className="absolute inset-x-0 bottom-0 h-7 flex items-center gap-6 px-4 font-mono text-[10px] select-none uppercase"
             style={{ background: 'rgba(2, 6, 23, 0.98)', borderTop: '1px solid rgba(56, 189, 248, 0.2)' }}>
             
             <span className="text-sky-500/80">
@@ -1223,11 +1277,11 @@ export function OperationsMap() {
         });
     };
 
-    const handleOpenSearch = () => {
-        openWindow({ type: 'search', title: 'SEARCH TERMINAL', icon: 'SR' });
+    const handleOpenSearch = (query = '') => {
+        openWindow({ type: 'search', title: 'SEARCH TERMINAL', icon: 'SR', props: query ? { initialQuery: query } : undefined });
     };
-    const handleOpenAnalysis = () => {
-        openWindow({ type: 'advanced-search', title: 'INTELLIGENCE ANALYSIS', icon: 'IA', size: { width: 600, height: 550 } });
+    const handleOpenAnalysis = (query = '') => {
+        openWindow({ type: 'advanced-search', title: 'INTELLIGENCE ANALYSIS', icon: 'IA', size: { width: 600, height: 550 }, props: query ? { initialQuery: query } : undefined });
     };
     const handleOpenLicenseDisclaimer = () => {
         openWindow({ type: 'license-disclaimer', title: 'DISCLAIMER', icon: 'LD', size: { width: 400, height: 280 } });
@@ -1288,6 +1342,7 @@ export function OperationsMap() {
             {/* Right HUD column */}
             <div className="absolute right-5 top-8 z-20 w-52 flex flex-col gap-2 pointer-events-none">
                 <OperatorPanel user={user} onLogin={handleOpenLogin} />
+                
                 {currentUniverse && recentHistory.length > 0 && (
                     <div className="pointer-events-auto">
                         <RecentIntelPanel
@@ -1322,11 +1377,10 @@ export function OperationsMap() {
                     {/* Bottom-most: Map legend (pointer-events-none) */}
                     {/* <MapLegend entityPinCount={entityPins.length} universeCount={universes.length} /> */}
 
-                    {/* Above legend: Quick access */}
-                    <QuickActions
+                    {/* Expandable search */}
+                    <ExpandableSearch
                         onSearch={handleOpenSearch}
                         onAnalysis={handleOpenAnalysis}
-                        onOpenLicenseDisclaimer={handleOpenLicenseDisclaimer}
                     />
 
                     {/* Above quick access: Recent events feed */}

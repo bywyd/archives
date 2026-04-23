@@ -2,6 +2,7 @@ import {
     AlertCircle,
     Boxes,
     CalendarDays,
+    ChevronRight,
     Edit3,
     FileText,
     Film,
@@ -480,6 +481,96 @@ function AliasesEditor({
 // Sections Editor
 // ============================================================
 
+/** Collect all IDs in a section's subtree (inclusive). */
+function collectSubtreeIds(nodes: ApiEntitySection[], targetId: number): Set<number> {
+    const ids = new Set<number>();
+    const findAndCollect = (list: ApiEntitySection[]): boolean => {
+        for (const n of list) {
+            if (n.id === targetId) {
+                const addAll = (s: ApiEntitySection) => { ids.add(s.id); s.children?.forEach(addAll); };
+                addAll(n);
+                return true;
+            }
+            if (n.children?.length && findAndCollect(n.children)) return true;
+        }
+        return false;
+    };
+    findAndCollect(nodes);
+    return ids;
+}
+
+/** Flatten a section tree into a single ordered array. */
+function flattenSections(nodes: ApiEntitySection[]): ApiEntitySection[] {
+    const flat: ApiEntitySection[] = [];
+    const collect = (list: ApiEntitySection[]) => {
+        for (const s of list) { flat.push(s); if (s.children?.length) collect(s.children); }
+    };
+    collect(nodes);
+    return flat;
+}
+
+function SectionEditorRow({
+    section,
+    depth,
+    onEdit,
+    onAddChild,
+    onDelete,
+}: {
+    section: ApiEntitySection;
+    depth: number;
+    onEdit: (section: ApiEntitySection) => void;
+    onAddChild: (parentId: number) => void;
+    onDelete: (id: number) => void;
+}) {
+    return (
+        <div className={cn(depth > 0 && 'ml-5 border-l border-[var(--arc-border)] pl-3')}>
+            <div className="flex items-center gap-2 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] px-3 py-2">
+                {depth > 0 && <ChevronRight className="size-3 shrink-0 text-[var(--arc-text-muted)]" />}
+                <span className="arc-mono text-[10px] text-[var(--arc-text-muted)] shrink-0">#{section.sort_order}</span>
+                <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium text-[var(--arc-text)]">{section.title}</div>
+                    <div className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
+                        {section.section_type} - {section.slug}
+                        {(section.children?.length ?? 0) > 0 && (
+                            <span className="ml-1.5 text-[var(--arc-accent)]">
+                                · {section.children!.length} child{section.children!.length !== 1 ? 'ren' : ''}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => onAddChild(section.id)}
+                    className="arc-btn arc-btn-sm text-[10px]"
+                    title="Add child section"
+                >
+                    <Plus className="size-3" />
+                </button>
+                <button type="button" onClick={() => onEdit(section)} className="arc-btn arc-btn-sm text-[10px]">
+                    <Edit3 className="size-3" /> Edit
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onDelete(section.id)}
+                    className="text-[var(--arc-text-muted)] hover:text-[var(--arc-danger)]"
+                >
+                    <Trash2 className="size-3.5" />
+                </button>
+            </div>
+            {section.children?.map((child) => (
+                <SectionEditorRow
+                    key={child.id}
+                    section={child}
+                    depth={depth + 1}
+                    onEdit={onEdit}
+                    onAddChild={onAddChild}
+                    onDelete={onDelete}
+                />
+            ))}
+        </div>
+    );
+}
+
 function SectionsEditor({
     universeId,
     universeSlug,
@@ -493,16 +584,33 @@ function SectionsEditor({
 }) {
     const [sections, setSections] = useState<ApiEntitySection[]>(entity.sections ?? []);
     const [editingId, setEditingId] = useState<number | 'new' | null>(null);
-    const [form, setForm] = useState({ title: '', slug: '', content: '', section_type: 'narrative' as string, sort_order: 0, is_collapsible: true });
+    const [form, setForm] = useState({
+        title: '', slug: '', content: '', section_type: 'narrative' as string,
+        sort_order: 0, is_collapsible: true, parent_id: null as number | null,
+    });
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const slugify = (text: string) =>
         text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    const startNew = () => {
+    const flatSections = useMemo(() => flattenSections(sections), [sections]);
+
+    // When editing, exclude the section itself and all its descendants from the parent picker.
+    const excludedFromParent = useMemo(
+        () => editingId !== 'new' && editingId !== null ? collectSubtreeIds(sections, editingId) : new Set<number>(),
+        [editingId, sections],
+    );
+
+    const startNew = (parentId: number | null = null) => {
         setEditingId('new');
-        setForm({ title: '', slug: '', content: '', section_type: 'narrative', sort_order: sections.length, is_collapsible: true });
+        const siblings = parentId
+            ? (flatSections.find((s) => s.id === parentId)?.children ?? [])
+            : sections;
+        setForm({
+            title: '', slug: '', content: '', section_type: 'narrative',
+            sort_order: siblings.length, is_collapsible: true, parent_id: parentId,
+        });
         setErrors({});
     };
 
@@ -515,6 +623,7 @@ function SectionsEditor({
             section_type: section.section_type,
             sort_order: section.sort_order,
             is_collapsible: section.is_collapsible,
+            parent_id: section.parent_id,
         });
         setErrors({});
     };
@@ -531,7 +640,6 @@ function SectionsEditor({
                 await api.updateEntitySection(universeId, entity.id, editingId as number, payload);
             }
             setEditingId(null);
-            // Refresh
             const res = await api.fetchEntitySections(universeId, entity.id);
             setSections(res.data);
             onRefresh();
@@ -550,7 +658,8 @@ function SectionsEditor({
 
     const handleDelete = async (sectionId: number) => {
         await api.deleteEntitySection(universeId, entity.id, sectionId);
-        setSections((prev) => prev.filter((s) => s.id !== sectionId));
+        const res = await api.fetchEntitySections(universeId, entity.id);
+        setSections(res.data);
         onRefresh();
     };
 
@@ -558,7 +667,7 @@ function SectionsEditor({
         <div className="space-y-3">
             <div className="flex items-center justify-between border-b border-[var(--arc-border)] pb-2">
                 <span className="arc-mono text-[10px] font-bold tracking-[0.15em] text-[var(--arc-accent)]">SECTIONS</span>
-                <button type="button" onClick={startNew} className="arc-btn text-xs">
+                <button type="button" onClick={() => startNew(null)} className="arc-btn text-xs">
                     <Plus className="size-3" /> Add Section
                 </button>
             </div>
@@ -598,6 +707,24 @@ function SectionsEditor({
                             <label className="arc-mono text-[10px] text-[var(--arc-text-muted)]">Sort Order</label>
                             <input type="number" value={form.sort_order} onChange={(e) => setForm((prev) => ({ ...prev, sort_order: Number(e.target.value) }))} className="arc-input text-xs" />
                         </div>
+                        <div className="col-span-2 space-y-1">
+                            <label className="arc-mono text-[10px] text-[var(--arc-text-muted)]">Parent Section</label>
+                            <select
+                                value={form.parent_id ?? ''}
+                                onChange={(e) => setForm((prev) => ({ ...prev, parent_id: e.target.value !== '' ? Number(e.target.value) : null }))}
+                                className="arc-input text-xs"
+                            >
+                                <option value="">- None (top-level)</option>
+                                {flatSections
+                                    .filter((s) => !excludedFromParent.has(s.id))
+                                    .map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.parent_id !== null ? '\u00a0\u00a0↳ ' : ''}{s.title}
+                                        </option>
+                                    ))}
+                            </select>
+                            {errors.parent_id && <p className="text-[10px] text-[var(--arc-danger)]">{errors.parent_id}</p>}
+                        </div>
                     </div>
                     <div className="space-y-1">
                         <label className="arc-mono text-[10px] text-[var(--arc-text-muted)]">Content</label>
@@ -626,21 +753,16 @@ function SectionsEditor({
                 </div>
             )}
 
-            {/* Sections List */}
+            {/* Sections Tree */}
             {sections.map((section) => (
-                <div key={section.id} className="flex items-center gap-3 rounded border border-[var(--arc-border)] bg-[var(--arc-surface)] px-3 py-2">
-                    <span className="arc-mono text-[10px] text-[var(--arc-text-muted)]">#{section.sort_order}</span>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-medium text-[var(--arc-text)]">{section.title}</div>
-                        <div className="arc-mono text-[9px] text-[var(--arc-text-muted)]">{section.section_type} · {section.slug}</div>
-                    </div>
-                    <button type="button" onClick={() => startEdit(section)} className="arc-btn arc-btn-sm text-[10px]">
-                        <Edit3 className="size-3" /> Edit
-                    </button>
-                    <button type="button" onClick={() => handleDelete(section.id)} className="text-[var(--arc-text-muted)] hover:text-[var(--arc-danger)]">
-                        <Trash2 className="size-3.5" />
-                    </button>
-                </div>
+                <SectionEditorRow
+                    key={section.id}
+                    section={section}
+                    depth={0}
+                    onEdit={startEdit}
+                    onAddChild={startNew}
+                    onDelete={handleDelete}
+                />
             ))}
 
             {sections.length === 0 && editingId === null && (

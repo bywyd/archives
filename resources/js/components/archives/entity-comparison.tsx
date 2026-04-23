@@ -1,11 +1,18 @@
 import {
+    Activity,
     AlertCircle,
     ChevronDown,
+    GitCompare,
     Loader2,
+    Lock,
     Plus,
     Scale,
     Search,
+    Shield,
+    Star,
+    Users,
     X,
+    Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StatusBadge } from '@/components/archives/status-badge';
@@ -14,6 +21,64 @@ import * as api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/stores/window-store';
 import type { ApiEntity, ApiEntitySummary } from '@/types/api';
+
+// Colour helpers
+
+const POWER_BAR_COLOR = (lvl: number) =>
+    lvl >= 8 ? 'var(--arc-danger)' : lvl >= 5 ? 'var(--arc-warning)' : 'var(--arc-success)';
+
+const POWER_STATUS_COLOR: Record<string, string> = {
+    active: 'var(--arc-success)',
+    lost: 'var(--arc-text-muted)',
+    dormant: 'var(--arc-warning)',
+    evolving: '#a78bfa',
+    artificial: '#60a5fa',
+    temporary: '#fb923c',
+};
+
+const INFECTION_STATUS_COLOR: Record<string, string> = {
+    active: 'var(--arc-danger)',
+    cured: 'var(--arc-success)',
+    dormant: 'var(--arc-warning)',
+    fatal: 'var(--arc-danger)',
+    mutated: '#a78bfa',
+    partial: '#fb923c',
+    unknown: 'var(--arc-text-muted)',
+};
+
+const AFFILIATION_STATUS_COLOR: Record<string, string> = {
+    active: 'var(--arc-success)',
+    former: 'var(--arc-text-muted)',
+    defected: 'var(--arc-danger)',
+    expelled: 'var(--arc-danger)',
+    deceased: 'var(--arc-text-muted)',
+    undercover: 'var(--arc-warning)',
+    honorary: '#60a5fa',
+};
+
+const CONSCIOUSNESS_STATUS_COLOR: Record<string, string> = {
+    active: 'var(--arc-success)',
+    transferred: '#60a5fa',
+    dormant: 'var(--arc-warning)',
+    fragmented: 'var(--arc-warning)',
+    merged: '#a78bfa',
+    destroyed: 'var(--arc-danger)',
+    digital: '#22d3ee',
+    shared: '#a78bfa',
+};
+
+// Section group definitions
+
+type SectionGroupId = 'identity' | 'content' | 'network' | 'records';
+
+const SECTION_GROUPS: { id: SectionGroupId; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+    { id: 'identity', label: 'IDENTITY', Icon: Shield },
+    { id: 'content', label: 'CONTENT',  Icon: Zap },
+    { id: 'network', label: 'NETWORK',  Icon: Users },
+    { id: 'records', label: 'RECORDS',  Icon: Activity },
+];
+
+// Types
 
 type Props = {
     universeId: number;
@@ -27,8 +92,9 @@ type CompareSlot = {
     error: string | null;
 };
 
+// Main component
+
 export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props) {
-    // Capture initial slugs once  avoids re-running the effect if parent re-renders
     const initialSlugsRef = useRef(initialEntitySlugs);
 
     const [slots, setSlots] = useState<CompareSlot[]>(() =>
@@ -45,9 +111,11 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
               ],
     );
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<ApiEntitySummary[]>([]);
+    const [searchResults, setSearchResults] = useState<ApiEntitySummary[] | any>([]);
     const [searching, setSearching] = useState(false);
     const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+    const [collapsedSections, setCollapsedSections] = useState<Set<SectionGroupId>>(new Set());
+    const [highlightDiff, setHighlightDiff] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
     const { openWindow } = useWindowStore();
 
@@ -91,7 +159,7 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
         }
         const timeout = setTimeout(() => {
             setSearching(true);
-            api.searchEntities(universeId, searchQuery)
+            api.globalSearch(searchQuery)
                 .then((res) => setSearchResults(res.data.slice(0, 10)))
                 .catch(() => setSearchResults([]))
                 .finally(() => setSearching(false));
@@ -122,46 +190,103 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
 
     const addSlot = () =>
         setSlots((prev) => [...prev, { id: `slot-${Date.now()}`, entity: null, loading: false, error: null }]);
-
-    const removeSlot = (slotId: string) =>
-        setSlots((prev) => prev.filter((s) => s.id !== slotId));
-
+    const removeSlot = (slotId: string) => setSlots((prev) => prev.filter((s) => s.id !== slotId));
     const clearSlot = (slotId: string) =>
         setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, entity: null, error: null } : s)));
+    const toggleSection = (id: SectionGroupId) =>
+        setCollapsedSections((prev) => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
 
     const entitiesWithData = slots.filter((s) => s.entity !== null);
 
+    // Diff keys  one normalized string per row per slot
+    const diffKeys = {
+        status:        slots.map((s) => s.entity?.entity_status?.slug ?? ''),
+        type:          slots.map((s) => s.entity?.entity_type?.slug ?? ''),
+        aliases:       slots.map((s) => String(s.entity?.aliases?.length ?? 0)),
+        tags:          slots.map((s) => (s.entity?.tags ?? []).map((t) => t.id).sort().join(',')),
+        categories:    slots.map((s) => (s.entity?.categories ?? []).map((c) => c.id).sort().join(',')),
+        sections:      slots.map((s) => String(s.entity?.sections?.length ?? 0)),
+        attributes:    slots.map((s) => String(s.entity?.attributes?.length ?? 0)),
+        affiliations:  slots.map((s) =>
+            (s.entity?.affiliation_history ?? [])
+                .filter((a) => a.status === 'active')
+                .map((a) => a.organization_name ?? a.organization?.name ?? '')
+                .join(','),
+        ),
+        relations:     slots.map((s) =>
+            String((s.entity?.outgoing_relations?.length ?? 0) + (s.entity?.incoming_relations?.length ?? 0)),
+        ),
+        timelines:     slots.map((s) => String(s.entity?.timelines?.length ?? 0)),
+        mediaSources:  slots.map((s) => String(s.entity?.media_sources?.length ?? 0)),
+        powers:        slots.map((s) => String(s.entity?.power_profiles?.length ?? 0)),
+        infections:    slots.map((s) =>
+            (s.entity?.infection_records ?? []).map((r) => r.status).sort().join(','),
+        ),
+        mutations:     slots.map((s) => String(s.entity?.mutation_stages?.length ?? 0)),
+        deaths:        slots.map((s) => String(s.entity?.death_records?.length ?? 0)),
+        consciousness: slots.map((s) => s.entity?.consciousness_records?.[0]?.status ?? ''),
+        quotes:        slots.map((s) => String(s.entity?.quotes?.length ?? 0)),
+    };
+
+    // Returns true when highlightDiff is on AND the loaded slots don't all agree
+    const isDiff = (keys: string[]) => {
+        if (!highlightDiff) return false;
+        const loaded = slots.map((s, i) => (s.entity ? keys[i] : null)).filter((k) => k !== null);
+        return loaded.length > 1 && new Set(loaded).size > 1;
+    };
+
     return (
         <div className="flex h-full flex-col">
-            {/*  Header  */}
+            {/* Toolbar */}
             <div className="flex items-center justify-between border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-4 py-2">
                 <div className="flex items-center gap-2">
                     <Scale className="size-4 text-[var(--arc-accent)]" />
                     <span className="arc-mono text-[10px] font-bold tracking-[0.2em] text-[var(--arc-accent)]">
                         ENTITY COMPARISON
                     </span>
-                    <span className="arc-mono text-[9px] text-[var(--arc-text-muted)]">
-                         {entitiesWithData.length} SUBJECTS
-                    </span>
+                    {entitiesWithData.length > 0 && (
+                        <span className="arc-mono rounded border border-[var(--arc-border)] px-1.5 py-0.5 text-[9px] text-[var(--arc-text-muted)]">
+                            {entitiesWithData.length} / {slots.length} LOADED
+                        </span>
+                    )}
                 </div>
-                <button
-                    onClick={addSlot}
-                    disabled={slots.length >= 5}
-                    className="flex items-center gap-1.5 rounded border border-[var(--arc-border)] px-2 py-1 text-[10px] text-[var(--arc-text-muted)] transition-all hover:border-[var(--arc-accent)]/30 hover:text-[var(--arc-accent)] disabled:opacity-40"
-                >
-                    <Plus className="size-3" />
-                    Add Subject
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setHighlightDiff((p) => !p)}
+                        title="Highlight differences"
+                        className={cn(
+                            'flex items-center gap-1.5 rounded border px-2 py-1 text-[10px] transition-all',
+                            highlightDiff
+                                ? 'border-[var(--arc-warning)]/50 bg-[var(--arc-warning)]/10 text-[var(--arc-warning)]'
+                                : 'border-[var(--arc-border)] text-[var(--arc-text-muted)] hover:border-[var(--arc-warning)]/30 hover:text-[var(--arc-warning)]',
+                        )}
+                    >
+                        <GitCompare className="size-3" />
+                        Diff
+                    </button>
+                    <button
+                        onClick={addSlot}
+                        disabled={slots.length >= 5}
+                        className="flex items-center gap-1.5 rounded border border-[var(--arc-border)] px-2 py-1 text-[10px] text-[var(--arc-text-muted)] transition-all hover:border-[var(--arc-accent)]/30 hover:text-[var(--arc-accent)] disabled:opacity-40"
+                    >
+                        <Plus className="size-3" />
+                        Add Subject
+                    </button>
+                </div>
             </div>
 
-            {/*  Comparison Grid  */}
+            {/* Grid */}
             <div className="flex-1 overflow-auto">
                 <div
                     ref={gridRef}
                     className="grid min-w-max"
-                    style={{ gridTemplateColumns: `180px repeat(${slots.length}, minmax(220px, 1fr))` }}
+                    style={{ gridTemplateColumns: `192px repeat(${slots.length}, minmax(240px, 1fr))` }}
                 >
-                    {/*  Sticky subject selector row  */}
+                    {/* Sticky subject selector row */}
                     <div className="sticky top-0 z-10 border-b-2 border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] px-3 py-2">
                         <span className="arc-mono text-[9px] font-bold tracking-wider text-[var(--arc-text-muted)]">
                             SUBJECTS
@@ -172,6 +297,11 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
                         <div
                             key={slot.id}
                             className="sticky top-0 z-10 border-b-2 border-l border-[var(--arc-border)] border-b-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] p-3"
+                            style={
+                                slot.entity?.entity_type?.color
+                                    ? { borderTopColor: slot.entity.entity_type.color, borderTopWidth: 2 }
+                                    : undefined
+                            }
                         >
                             {slot.loading ? (
                                 <div className="flex items-center justify-center py-4">
@@ -189,7 +319,7 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
                                     onOpenDossier={() =>
                                         openWindow({
                                             type: 'entity-dossier',
-                                            title: `${slot.entity!.name}  DOSSIER`,
+                                            title: `${slot.entity!.name} - DOSSIER`,
                                             icon: slot.entity!.entity_type?.icon ?? 'EN',
                                             props: {
                                                 key: `entity-${universeId}-${slot.entity!.slug}`,
@@ -218,199 +348,569 @@ export function EntityComparison({ universeId, initialEntitySlugs = [] }: Props)
                         </div>
                     ))}
 
-                    {/*  Comparison data rows  */}
+                    {/* Data rows */}
                     {entitiesWithData.length > 0 && (
                         <>
-                            <CompareRow label="STATUS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.entity_status ? (
-                                            <StatusBadge status={slot.entity.entity_status} />
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="TYPE">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.entity_type ? (
-                                            <div className="flex items-center gap-2">
-                                                <TypeIcon entityType={slot.entity.entity_type} size="sm" />
-                                                <span className="text-xs text-[var(--arc-text)]">
-                                                    {slot.entity.entity_type.name}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="DESCRIPTION">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.short_description ? (
-                                            <p className="line-clamp-3 text-xs leading-relaxed text-[var(--arc-text-muted)]">
-                                                {slot.entity.short_description}
-                                            </p>
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="ALIASES">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.aliases?.length ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {slot.entity.aliases.slice(0, 4).map((alias) => (
-                                                    <span
-                                                        key={alias.id}
-                                                        className="rounded bg-[var(--arc-surface-alt)] px-1.5 py-0.5 text-[10px] text-[var(--arc-text-muted)]"
-                                                    >
-                                                        {alias.alias}
-                                                    </span>
-                                                ))}
-                                                {slot.entity.aliases.length > 4 && (
-                                                    <span className="text-[9px] text-[var(--arc-text-muted)]">
-                                                        +{slot.entity.aliases.length - 4}
-                                                    </span>
+                            {/* IDENTITY */}
+                            <SectionGroup
+                                id="identity"
+                                collapsed={collapsedSections.has('identity')}
+                                colCount={slots.length}
+                                onToggle={() => toggleSection('identity')}
+                            />
+                            {!collapsedSections.has('identity') && (
+                                <>
+                                    <CompareRow label="STATUS" diff={isDiff(diffKeys.status)} rowIndex={0}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.status) && !!slot.entity}>
+                                                {slot.entity?.entity_status ? (
+                                                    <StatusBadge status={slot.entity.entity_status} size="md" />
+                                                ) : (
+                                                    <Dash />
                                                 )}
-                                            </div>
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
 
-                            <CompareRow label="TAGS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.tags?.length ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {slot.entity.tags.map((tag) => (
-                                                    <span
-                                                        key={tag.id}
-                                                        className="rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                                                        style={{
-                                                            color: tag.color ?? 'var(--arc-text-muted)',
-                                                            backgroundColor: `${tag.color ?? '#6B7280'}18`,
-                                                        }}
-                                                    >
-                                                        {tag.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="RELATIONS">
-                                {slots.map((slot) => {
-                                    const count =
-                                        (slot.entity?.outgoing_relations?.length ?? 0) +
-                                        (slot.entity?.incoming_relations?.length ?? 0);
-                                    return (
-                                        <CompareCell key={slot.id}>
-                                            <span className="arc-mono text-sm font-bold text-[var(--arc-text)]">
-                                                {count}
-                                            </span>
-                                        </CompareCell>
-                                    );
-                                })}
-                            </CompareRow>
-
-                            <CompareRow label="POWERS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        <StatValue value={slot.entity?.power_profiles?.length ?? 0} />
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="SECTIONS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        <StatValue value={slot.entity?.sections?.length ?? 0} />
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="INFECTIONS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        <StatValue value={slot.entity?.infection_records?.length ?? 0} />
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="MUTATIONS">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        <StatValue value={slot.entity?.mutation_stages?.length ?? 0} />
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
-
-                            <CompareRow label="ATTRIBUTES">
-                                {slots.map((slot) => (
-                                    <CompareCell key={slot.id}>
-                                        {slot.entity?.attributes?.length ? (
-                                            <div className="space-y-1">
-                                                {slot.entity.attributes.slice(0, 6).map((attr) => (
-                                                    <div
-                                                        key={attr.id}
-                                                        className="flex items-center justify-between gap-2 text-[10px]"
-                                                    >
-                                                        <span className="truncate text-[var(--arc-text-muted)]">
-                                                            {attr.definition?.name}
-                                                        </span>
-                                                        <span className="shrink-0 font-medium text-[var(--arc-text)]">
-                                                            {attr.value}
+                                    <CompareRow label="TYPE" diff={isDiff(diffKeys.type)} rowIndex={1}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.type) && !!slot.entity}>
+                                                {slot.entity?.entity_type ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <TypeIcon entityType={slot.entity.entity_type} size="sm" />
+                                                        <span className="text-xs text-[var(--arc-text)]">
+                                                            {slot.entity.entity_type.name}
                                                         </span>
                                                     </div>
-                                                ))}
-                                                {slot.entity.attributes.length > 6 && (
-                                                    <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
-                                                        +{slot.entity.attributes.length - 6} more
-                                                    </span>
+                                                ) : (
+                                                    <Dash />
                                                 )}
-                                            </div>
-                                        ) : (
-                                            <Dash />
-                                        )}
-                                    </CompareCell>
-                                ))}
-                            </CompareRow>
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="DESCRIPTION" rowIndex={2}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id}>
+                                                {slot.entity?.short_description ? (
+                                                    <p className="line-clamp-3 text-xs leading-relaxed text-[var(--arc-text-muted)]">
+                                                        {slot.entity.short_description}
+                                                    </p>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="ALIASES" diff={isDiff(diffKeys.aliases)} rowIndex={3}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.aliases) && !!slot.entity}>
+                                                {slot.entity?.aliases?.length ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {slot.entity.aliases.slice(0, 4).map((alias) => (
+                                                            <span
+                                                                key={alias.id}
+                                                                className="rounded bg-[var(--arc-surface-alt)] px-1.5 py-0.5 text-[10px] text-[var(--arc-text-muted)]"
+                                                            >
+                                                                {alias.alias}
+                                                            </span>
+                                                        ))}
+                                                        {slot.entity.aliases.length > 4 && (
+                                                            <span className="text-[9px] text-[var(--arc-text-muted)]">
+                                                                +{slot.entity.aliases.length - 4}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="TAGS" diff={isDiff(diffKeys.tags)} rowIndex={4}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.tags) && !!slot.entity}>
+                                                {slot.entity?.tags?.length ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {slot.entity.tags.map((tag) => (
+                                                            <span
+                                                                key={tag.id}
+                                                                className="rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                                                                style={{
+                                                                    color: tag.color ?? 'var(--arc-text-muted)',
+                                                                    backgroundColor: `${tag.color ?? '#6B7280'}18`,
+                                                                }}
+                                                            >
+                                                                {tag.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="CATEGORIES" diff={isDiff(diffKeys.categories)} rowIndex={5}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.categories) && !!slot.entity}>
+                                                {slot.entity?.categories?.length ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {slot.entity.categories.map((cat) => (
+                                                            <span
+                                                                key={cat.id}
+                                                                className="rounded border border-[var(--arc-border)] px-1.5 py-0.5 text-[9px] text-[var(--arc-text-muted)]"
+                                                            >
+                                                                {cat.name}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+                                </>
+                            )}
+
+                            {/* CONTENT */}
+                            <SectionGroup
+                                id="content"
+                                collapsed={collapsedSections.has('content')}
+                                colCount={slots.length}
+                                onToggle={() => toggleSection('content')}
+                            />
+                            {!collapsedSections.has('content') && (
+                                <>
+                                    <CompareRow label="SECTIONS" diff={isDiff(diffKeys.sections)} rowIndex={0}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.sections) && !!slot.entity}>
+                                                <StatValue value={slot.entity?.sections?.length ?? 0} />
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="ATTRIBUTES" diff={isDiff(diffKeys.attributes)} rowIndex={1}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.attributes) && !!slot.entity}>
+                                                {slot.entity?.attributes?.length ? (
+                                                    <div className="space-y-1">
+                                                        {slot.entity.attributes.slice(0, 6).map((attr) => (
+                                                            <div
+                                                                key={attr.id}
+                                                                className="flex items-center justify-between gap-2 text-[10px]"
+                                                            >
+                                                                <span className="truncate text-[var(--arc-text-muted)]">
+                                                                    {attr.definition?.name}
+                                                                </span>
+                                                                <span className="shrink-0 font-medium text-[var(--arc-text)]">
+                                                                    {attr.value}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        {slot.entity.attributes.length > 6 && (
+                                                            <span className="arc-mono block text-[8px] text-[var(--arc-text-muted)]">
+                                                                +{slot.entity.attributes.length - 6} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+                                </>
+                            )}
+
+                            {/* NETWORK */}
+                            <SectionGroup
+                                id="network"
+                                collapsed={collapsedSections.has('network')}
+                                colCount={slots.length}
+                                onToggle={() => toggleSection('network')}
+                            />
+                            {!collapsedSections.has('network') && (
+                                <>
+                                    <CompareRow label="AFFILIATIONS" diff={isDiff(diffKeys.affiliations)} rowIndex={0}>
+                                        {slots.map((slot) => {
+                                            const all = slot.entity?.affiliation_history ?? [];
+                                            return (
+                                                <CompareCell key={slot.id} diff={isDiff(diffKeys.affiliations) && !!slot.entity}>
+                                                    {all.length ? (
+                                                        <div className="space-y-1">
+                                                            {all.slice(0, 3).map((a) => (
+                                                                <div key={a.id} className="flex items-center gap-1.5">
+                                                                    <span
+                                                                        className="size-1.5 shrink-0 rounded-full"
+                                                                        style={{
+                                                                            backgroundColor:
+                                                                                AFFILIATION_STATUS_COLOR[a.status] ??
+                                                                                'var(--arc-text-muted)',
+                                                                        }}
+                                                                    />
+                                                                    <span className="truncate text-[10px] font-medium text-[var(--arc-text)]">
+                                                                        {a.organization_name ?? a.organization?.name ?? 'Unknown'}
+                                                                    </span>
+                                                                    {a.role && (
+                                                                        <span className="shrink-0 text-[9px] text-[var(--arc-text-muted)]">
+                                                                            {a.role}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                            {all.length > 3 && (
+                                                                <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
+                                                                    +{all.length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <Dash />
+                                                    )}
+                                                </CompareCell>
+                                            );
+                                        })}
+                                    </CompareRow>
+
+                                    <CompareRow label="RELATIONS" diff={isDiff(diffKeys.relations)} rowIndex={1}>
+                                        {slots.map((slot) => {
+                                            const out = slot.entity?.outgoing_relations?.length ?? 0;
+                                            const inc = slot.entity?.incoming_relations?.length ?? 0;
+                                            return (
+                                                <CompareCell key={slot.id} diff={isDiff(diffKeys.relations) && !!slot.entity}>
+                                                    {slot.entity ? (
+                                                        <div className="space-y-0.5">
+                                                            <div className="flex items-center gap-1.5 text-[10px]">
+                                                                <span className="arc-mono font-bold text-[var(--arc-text)]">
+                                                                    {out + inc}
+                                                                </span>
+                                                                <span className="text-[var(--arc-text-muted)]">total</span>
+                                                            </div>
+                                                            <div className="flex gap-2 text-[9px] text-[var(--arc-text-muted)]">
+                                                                <span>↑ {out} out</span>
+                                                                <span>↓ {inc} in</span>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Dash />
+                                                    )}
+                                                </CompareCell>
+                                            );
+                                        })}
+                                    </CompareRow>
+
+                                    <CompareRow label="TIMELINES" diff={isDiff(diffKeys.timelines)} rowIndex={2}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.timelines) && !!slot.entity}>
+                                                {slot.entity?.timelines?.length ? (
+                                                    <div className="space-y-0.5">
+                                                        {slot.entity.timelines.slice(0, 3).map((tl) => (
+                                                            <div key={tl.id} className="truncate text-[10px] text-[var(--arc-text-muted)]">
+                                                                {tl.name}
+                                                            </div>
+                                                        ))}
+                                                        {slot.entity.timelines.length > 3 && (
+                                                            <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
+                                                                +{slot.entity.timelines.length - 3} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="MEDIA SOURCES" diff={isDiff(diffKeys.mediaSources)} rowIndex={3}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.mediaSources) && !!slot.entity}>
+                                                <StatValue value={slot.entity?.media_sources?.length ?? 0} />
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+                                </>
+                            )}
+
+                            {/* RECORDS */}
+                            <SectionGroup
+                                id="records"
+                                collapsed={collapsedSections.has('records')}
+                                colCount={slots.length}
+                                onToggle={() => toggleSection('records')}
+                            />
+                            {!collapsedSections.has('records') && (
+                                <>
+                                    <CompareRow label="POWERS" diff={isDiff(diffKeys.powers)} rowIndex={0}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.powers) && !!slot.entity}>
+                                                {slot.entity?.power_profiles?.length ? (
+                                                    <div className="space-y-2">
+                                                        {slot.entity.power_profiles.slice(0, 3).map((p) => (
+                                                            <div key={p.id} className="space-y-1">
+                                                                <div className="flex items-center justify-between gap-1">
+                                                                    <span className="truncate text-[10px] font-medium text-[var(--arc-text)]">
+                                                                        {p.name}
+                                                                    </span>
+                                                                    <span
+                                                                        className="arc-mono shrink-0 text-[8px] font-bold uppercase"
+                                                                        style={{ color: POWER_STATUS_COLOR[p.status] ?? 'var(--arc-text-muted)' }}
+                                                                    >
+                                                                        {p.status}
+                                                                    </span>
+                                                                </div>
+                                                                {p.power_level != null && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <div className="h-1 flex-1 overflow-hidden rounded-full bg-[var(--arc-border)]">
+                                                                            <div
+                                                                                className="h-full rounded-full transition-all"
+                                                                                style={{
+                                                                                    width: `${p.power_level * 10}%`,
+                                                                                    backgroundColor: POWER_BAR_COLOR(p.power_level),
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="arc-mono shrink-0 text-[8px] text-[var(--arc-text-muted)]">
+                                                                            {p.power_level}/10
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        {slot.entity.power_profiles.length > 3 && (
+                                                            <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
+                                                                +{slot.entity.power_profiles.length - 3} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="INFECTIONS" diff={isDiff(diffKeys.infections)} rowIndex={1}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.infections) && !!slot.entity}>
+                                                {slot.entity?.infection_records?.length ? (
+                                                    <div className="space-y-1">
+                                                        {slot.entity.infection_records.slice(0, 3).map((rec) => (
+                                                            <div key={rec.id} className="flex items-center gap-1.5">
+                                                                <span
+                                                                    className="size-1.5 shrink-0 rounded-full"
+                                                                    style={{ backgroundColor: INFECTION_STATUS_COLOR[rec.status] ?? 'var(--arc-text-muted)' }}
+                                                                />
+                                                                <span className="truncate text-[10px] text-[var(--arc-text-muted)]">
+                                                                    {rec.pathogen_name ?? 'Unknown pathogen'}
+                                                                </span>
+                                                                <span
+                                                                    className="arc-mono ml-auto shrink-0 text-[8px] font-bold uppercase"
+                                                                    style={{ color: INFECTION_STATUS_COLOR[rec.status] ?? 'var(--arc-text-muted)' }}
+                                                                >
+                                                                    {rec.status}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        {slot.entity.infection_records.length > 3 && (
+                                                            <span className="arc-mono text-[8px] text-[var(--arc-text-muted)]">
+                                                                +{slot.entity.infection_records.length - 3} more
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+
+                                    <CompareRow label="MUTATIONS" diff={isDiff(diffKeys.mutations)} rowIndex={2}>
+                                        {slots.map((slot) => {
+                                            const stages = slot.entity?.mutation_stages ?? [];
+                                            const maxThreat = stages.reduce((max, s) => Math.max(max, s.threat_level ?? 0), 0);
+                                            return (
+                                                <CompareCell key={slot.id} diff={isDiff(diffKeys.mutations) && !!slot.entity}>
+                                                    {stages.length ? (
+                                                        <div className="space-y-0.5">
+                                                            <StatValue value={stages.length} suffix=" stages" />
+                                                            {maxThreat > 0 && (
+                                                                <div className="flex items-center gap-1 text-[9px]">
+                                                                    <span className="text-[var(--arc-text-muted)]">Peak threat:</span>
+                                                                    <span
+                                                                        className="arc-mono font-bold"
+                                                                        style={{ color: POWER_BAR_COLOR(maxThreat) }}
+                                                                    >
+                                                                        {maxThreat}/10
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <Dash />
+                                                    )}
+                                                </CompareCell>
+                                            );
+                                        })}
+                                    </CompareRow>
+
+                                    <CompareRow label="DEATHS" diff={isDiff(diffKeys.deaths)} rowIndex={3}>
+                                        {slots.map((slot) => {
+                                            const records = slot.entity?.death_records ?? [];
+                                            const revived = records.filter((r) => r.is_revived).length;
+                                            return (
+                                                <CompareCell key={slot.id} diff={isDiff(diffKeys.deaths) && !!slot.entity}>
+                                                    {records.length ? (
+                                                        <div className="space-y-1">
+                                                            <StatValue value={records.length} suffix=" record(s)" />
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {records.some((r) => r.is_confirmed) && (
+                                                                    <span className="arc-mono text-[8px] font-bold uppercase text-[var(--arc-danger)]">
+                                                                        CONFIRMED
+                                                                    </span>
+                                                                )}
+                                                                {revived > 0 && (
+                                                                    <span className="arc-mono text-[8px] font-bold uppercase text-[var(--arc-success)]">
+                                                                        REVIVED ×{revived}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Dash />
+                                                    )}
+                                                </CompareCell>
+                                            );
+                                        })}
+                                    </CompareRow>
+
+                                    <CompareRow label="CONSCIOUSNESS" diff={isDiff(diffKeys.consciousness)} rowIndex={4}>
+                                        {slots.map((slot) => {
+                                            const records = slot.entity?.consciousness_records ?? [];
+                                            const latest = records[0];
+                                            return (
+                                                <CompareCell key={slot.id} diff={isDiff(diffKeys.consciousness) && !!slot.entity}>
+                                                    {records.length ? (
+                                                        <div className="space-y-0.5">
+                                                            <StatValue value={records.length} suffix=" record(s)" />
+                                                            {latest && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <span
+                                                                        className="size-1.5 rounded-full"
+                                                                        style={{ backgroundColor: CONSCIOUSNESS_STATUS_COLOR[latest.status] ?? 'var(--arc-text-muted)' }}
+                                                                    />
+                                                                    <span
+                                                                        className="arc-mono text-[9px] uppercase"
+                                                                        style={{ color: CONSCIOUSNESS_STATUS_COLOR[latest.status] ?? 'var(--arc-text-muted)' }}
+                                                                    >
+                                                                        {latest.status}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <Dash />
+                                                    )}
+                                                </CompareCell>
+                                            );
+                                        })}
+                                    </CompareRow>
+
+                                    <CompareRow label="QUOTES" diff={isDiff(diffKeys.quotes)} rowIndex={5}>
+                                        {slots.map((slot) => (
+                                            <CompareCell key={slot.id} diff={isDiff(diffKeys.quotes) && !!slot.entity}>
+                                                {slot.entity?.quotes?.length ? (
+                                                    <div className="space-y-1.5">
+                                                        {slot.entity.quotes
+                                                            .filter((q) => q.is_featured)
+                                                            .slice(0, 1)
+                                                            .map((q) => (
+                                                                <p key={q.id} className="line-clamp-2 text-[10px] italic text-[var(--arc-text-muted)]">
+                                                                    "{q.quote}"
+                                                                </p>
+                                                            ))}
+                                                        <StatValue value={slot.entity.quotes.length} suffix=" total" />
+                                                    </div>
+                                                ) : (
+                                                    <Dash />
+                                                )}
+                                            </CompareCell>
+                                        ))}
+                                    </CompareRow>
+                                </>
+                            )}
                         </>
                     )}
                 </div>
             </div>
 
-            {/*  Empty state  */}
+            {/* Empty state */}
             {entitiesWithData.length === 0 && (
-                <div className="flex flex-col items-center justify-center gap-2 border-t border-[var(--arc-border)] bg-[var(--arc-surface-alt)] py-10">
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 border-t border-[var(--arc-border)] bg-[var(--arc-surface-alt)]">
                     <Scale className="size-8 text-[var(--arc-text-muted)]" opacity={0.4} />
-                    <span className="arc-mono text-[10px] text-[var(--arc-text-muted)]">
-                        SELECT ENTITIES TO COMPARE
-                    </span>
+                    <div className="text-center">
+                        <p className="arc-mono text-[10px] font-bold tracking-[0.2em] text-[var(--arc-text-muted)]">
+                            SELECT ENTITIES TO COMPARE
+                        </p>
+                        <p className="mt-1 text-[10px] text-[var(--arc-text-muted)]">
+                            Add up to 5 subjects · toggle Diff to highlight differences
+                        </p>
+                    </div>
                 </div>
             )}
         </div>
     );
 }
 
-//  Slot header for a loaded entity 
+// Section group header row
+
+function SectionGroup({
+    id,
+    collapsed,
+    colCount,
+    onToggle,
+}: {
+    id: SectionGroupId;
+    collapsed: boolean;
+    colCount: number;
+    onToggle: () => void;
+}) {
+    const group = SECTION_GROUPS.find((g) => g.id === id)!;
+    const { Icon } = group;
+    return (
+        <>
+            <button
+                onClick={onToggle}
+                className="flex items-center gap-2 border-b border-t border-[var(--arc-border-strong)] bg-[var(--arc-win-title-bg)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--arc-win-title-active-bg)]"
+            >
+                <Icon className="size-3 text-[var(--arc-win-title-text)]" />
+                <span className="arc-mono text-[9px] font-bold tracking-[0.15em] text-[var(--arc-win-title-text)]">
+                    {group.label}
+                </span>
+                <ChevronDown
+                    className={cn(
+                        'ml-auto size-3 text-[var(--arc-win-title-text)] transition-transform',
+                        collapsed && '-rotate-90',
+                    )}
+                />
+            </button>
+            {Array.from({ length: colCount }).map((_, i) => (
+                <button
+                    key={i}
+                    onClick={onToggle}
+                    className="border-b border-l border-t border-[var(--arc-border-strong)] bg-[var(--arc-win-title-bg)] py-1.5 transition-colors hover:bg-[var(--arc-win-title-active-bg)]"
+                />
+            ))}
+        </>
+    );
+}
+
+// Slot header for a loaded entity
 
 function SlotHeader({
     entity,
@@ -429,28 +929,44 @@ function SlotHeader({
             {/* Profile image */}
             <button
                 onClick={onOpenDossier}
-                className="size-11 shrink-0 overflow-hidden rounded border border-[var(--arc-border-strong)] bg-[var(--arc-bg)] transition-opacity hover:opacity-80"
+                className="size-14 shrink-0 overflow-hidden rounded border border-[var(--arc-border-strong)] bg-[var(--arc-bg)] transition-opacity hover:opacity-80"
                 title="Open dossier"
             >
                 {thumbUrl ? (
                     <img src={thumbUrl} alt={entity.name} className="size-full object-cover" />
                 ) : (
                     <div className="flex size-full items-center justify-center">
-                        <TypeIcon entityType={entity.entity_type} size="sm" />
+                        <TypeIcon entityType={entity.entity_type} size="md" />
                     </div>
                 )}
             </button>
 
             <div className="min-w-0 flex-1">
-                <button
-                    onClick={onOpenDossier}
-                    className="block truncate text-left text-xs font-semibold text-[var(--arc-text)] hover:text-[var(--arc-accent)]"
-                >
-                    {entity.name}
-                </button>
-                <div className="arc-mono truncate text-[9px] text-[var(--arc-text-muted)]">
-                    {entity.entity_type?.name ?? 'Unknown'}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={onOpenDossier}
+                        className="block truncate text-left text-xs font-semibold text-[var(--arc-text)] hover:text-[var(--arc-accent)]"
+                    >
+                        {entity.name}
+                    </button>
+                    {entity.is_featured && (
+                        <Star className="size-3 shrink-0 text-[var(--arc-warning)]" fill="currentColor" /> 
+                    )}
+                    {entity.is_locked && (
+                        <Lock className="size-3 shrink-0 text-[var(--arc-text-muted)]" />
+                    )}
                 </div>
+                <div className="mt-0.5 flex items-center gap-1.5">
+                    <TypeIcon entityType={entity.entity_type} size="sm" />
+                    <span className="arc-mono truncate text-[9px] text-[var(--arc-text-muted)]">
+                        {entity.entity_type?.name ?? 'Unknown'}
+                    </span>
+                </div>
+                {(entity.categories?.length ?? 0) > 0 && (
+                    <div className="arc-mono mt-0.5 text-[8px] text-[var(--arc-text-muted)]">
+                        {entity.categories.length} {entity.categories.length === 1 ? 'category' : 'categories'}
+                    </div>
+                )}
                 {entity.entity_status && (
                     <div className="mt-1">
                         <StatusBadge status={entity.entity_status} />
@@ -460,7 +976,7 @@ function SlotHeader({
 
             <button
                 onClick={onClear}
-                className="mt-0.5 shrink-0 text-[var(--arc-text-muted)] hover:text-[var(--arc-danger)]"
+                className="mt-0.5 shrink-0 text-[var(--arc-text-muted)] transition-colors hover:text-[var(--arc-danger)]"
                 title="Remove"
             >
                 <X className="size-3.5" />
@@ -469,7 +985,7 @@ function SlotHeader({
     );
 }
 
-//  Empty slot with entity search 
+// Empty slot with entity search
 
 function SlotSearch({
     isActive,
@@ -557,17 +1073,16 @@ function SlotSearch({
                                                 {result.entity_type?.name}
                                             </div>
                                         </div>
+                                        {result.entity_status && (
+                                            <StatusBadge status={result.entity_status} size="sm" />
+                                        )}
                                     </button>
                                 );
                             })
                         ) : searchQuery ? (
-                            <div className="py-5 text-center text-xs text-[var(--arc-text-muted)]">
-                                No results found
-                            </div>
+                            <div className="py-5 text-center text-xs text-[var(--arc-text-muted)]">No results found</div>
                         ) : (
-                            <div className="py-5 text-center text-xs text-[var(--arc-text-muted)]">
-                                Type to search…
-                            </div>
+                            <div className="py-5 text-center text-xs text-[var(--arc-text-muted)]">Type to search…</div>
                         )}
                     </div>
                 </div>
@@ -586,12 +1101,28 @@ function SlotSearch({
     );
 }
 
-//  Helper components 
+// Helper components
 
-function CompareRow({ label, children }: { label: string; children: React.ReactNode }) {
+function CompareRow({
+    label,
+    children,
+    diff = false,
+    rowIndex = 0,
+}: {
+    label: string;
+    children: React.ReactNode;
+    diff?: boolean;
+    rowIndex?: number;
+}) {
     return (
         <>
-            <div className="border-b border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3 py-2">
+            <div
+                className={cn(
+                    'flex items-center border-b border-[var(--arc-border)] px-3 py-2',
+                    rowIndex % 2 === 0 ? 'bg-[var(--arc-surface-alt)]' : 'bg-[var(--arc-surface)]',
+                    diff && 'border-l-2 border-l-[var(--arc-warning)]/60',
+                )}
+            >
                 <span className="arc-mono text-[9px] font-bold tracking-wider text-[var(--arc-text-muted)]">
                     {label}
                 </span>
@@ -601,22 +1132,28 @@ function CompareRow({ label, children }: { label: string; children: React.ReactN
     );
 }
 
-function CompareCell({ children }: { children: React.ReactNode }) {
+function CompareCell({ children, diff = false }: { children: React.ReactNode; diff?: boolean }) {
     return (
-        <div className="border-b border-l border-[var(--arc-border)] bg-[var(--arc-bg)] p-3">
+        <div
+            className={cn(
+                'border-b border-l border-[var(--arc-border)] bg-[var(--arc-bg)] p-3 transition-colors',
+                diff && 'bg-[var(--arc-warning)]/5 border-l-[var(--arc-warning)]/30',
+            )}
+        >
             {children}
         </div>
     );
 }
 
 function Dash() {
-    return <span className="arc-mono text-[10px] text-[var(--arc-text-muted)]"></span>;
+    return <span className="arc-mono text-[10px] text-[var(--arc-text-muted)] opacity-40">-</span>;
 }
 
-function StatValue({ value }: { value: number }) {
+function StatValue({ value, suffix = '' }: { value: number; suffix?: string }) {
     return (
         <span className={cn('arc-mono text-sm font-bold', value > 0 ? 'text-[var(--arc-text)]' : 'text-[var(--arc-text-muted)]')}>
             {value}
+            {suffix && <span className="text-[10px] font-normal text-[var(--arc-text-muted)]">{suffix}</span>}
         </span>
     );
 }

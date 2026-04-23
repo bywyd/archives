@@ -278,6 +278,7 @@ class Entity extends Model
         Cache::forget($this->cacheKey('map-markers'));
         Cache::forget($this->cacheKey('map'));
         Cache::forget($this->cacheKey('related-tags'));
+        Cache::forget($this->cacheKey('briefing'));
         Cache::forget("entity:{$this->id}:is_locked");
 
         // Cascade to the parent entity's cache if this IS a map entity

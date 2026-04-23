@@ -17,7 +17,12 @@ class EntitySectionController extends Controller
     {
         $sections = $entity->sections()
             ->whereNull('parent_id')
-            ->with(['children', 'images'])
+            ->with([
+                'images',
+                'children.images',
+                'children.children.images',
+                'children.children.children.images',
+            ])
             ->orderBy('sort_order')
             ->get();
 
@@ -30,14 +35,23 @@ class EntitySectionController extends Controller
         $data['entity_id'] = $entity->id;
 
         $section = EntitySection::create($data);
-        $section->load('children');
+        $section->load([
+            'images',
+            'children.images',
+            'children.children.images',
+        ]);
 
         return new EntitySectionResource($section);
     }
 
     public function show(Universe $universe, Entity $entity, EntitySection $section): EntitySectionResource
     {
-        $section->load(['children', 'images']);
+        $section->load([
+            'images',
+            'children.images',
+            'children.children.images',
+            'children.children.children.images',
+        ]);
 
         return new EntitySectionResource($section);
     }
@@ -54,7 +68,12 @@ class EntitySectionController extends Controller
         ]);
 
         $section->update($validated);
-        $section->load(['children', 'images']);
+        $section->load([
+            'images',
+            'children.images',
+            'children.children.images',
+            'children.children.children.images',
+        ]);
 
         return new EntitySectionResource($section);
     }

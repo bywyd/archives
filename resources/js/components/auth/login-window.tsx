@@ -208,6 +208,19 @@ export function LoginWindow() {
                     {submitting ? 'Authenticating...' : '[ Authenticate ]'}
                 </button>
             </form>
+
+            {/* register button */}
+            <div
+                className="px-5 pb-4 pt-2 text-center"
+                style={{ borderTop: '1px solid rgba(37,99,235,0.15)' }}
+            >
+                <span
+                    className="font-mono text-[10px] tracking-widest uppercase text-blue-400/70 cursor-pointer"
+                    onClick={() => router.visit('/register')}
+                >
+                    [ Register ]
+                </span>
+            </div>
         </div>
     );
 }
