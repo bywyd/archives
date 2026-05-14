@@ -21,6 +21,7 @@ export type WindowType =
     | 'discovery'
     | 'recently-viewed'
     | 'entity-comparison'
+    | 'entity-intersection'
     | 'connections-graph'
     | 'search-briefing'
     | 'search-subjects'
