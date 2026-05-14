@@ -4,6 +4,7 @@ import type { WindowState } from '@/stores/window-store';
 
 const AdvancedSearchBriefing  = lazy(() => import('@/components/archives/advanced-search-briefing').then((m) => ({ default: m.AdvancedSearchBriefing })));
 const EntityComparison        = lazy(() => import('@/components/archives/entity-comparison').then((m) => ({ default: m.EntityComparison })));
+const EntityIntersection      = lazy(() => import('@/components/archives/entity-intersection').then((m) => ({ default: m.EntityIntersection })));
 const EntityConnectionsGraph  = lazy(() => import('@/components/archives/entity-connections-graph').then((m) => ({ default: m.EntityConnectionsGraph })));
 const EntityDiscovery         = lazy(() => import('@/components/archives/entity-discovery').then((m) => ({ default: m.EntityDiscovery })));
 const EntityDossier           = lazy(() => import('@/components/archives/entity-dossier').then((m) => ({ default: m.EntityDossier })));
@@ -131,6 +132,13 @@ function renderContent(win: WindowState) {
                 <EntityComparison
                     universeId={win.props.universeId as number}
                     initialEntitySlugs={win.props.initialEntitySlugs as string[] | undefined}
+                />
+            );
+        case 'entity-intersection':
+            return (
+                <EntityIntersection
+                    universeId={win.props.universeId as number}
+                    sourceEntitySlug={win.props.sourceEntitySlug as string}
                 />
             );
         case 'entity-editor':

@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileSearch, FileText, GitBranch, GitBranchIcon, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
+import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileSearch, FileText, GitBranch, GitBranchIcon, GitMerge, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntityAffiliationHistory } from '@/components/archives/entity-affiliation-history';
 import { EntityAliases } from '@/components/archives/entity-aliases';
@@ -266,6 +266,19 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                         title: "ENTITY COMPARISON",
                         icon: "EC",
                         props: { key: `comparison-${universeId}`, universeId, initialEntitySlugs: [entity.slug] },
+                    })
+                    }
+                />
+                <ActionButton
+                    icon={<GitMerge className="size-3" />}
+                    title="Find common ground"
+                    onClick={() =>
+                    openWindow({
+                        type: 'entity-intersection',
+                        title: `INTERSECTION  ${entity.name.toUpperCase()}`,
+                        icon: 'INT',
+                        props: { key: `intersection-${universeId}-${entity.slug}`, universeId, sourceEntitySlug: entity.slug },
+                        size: { width: 660, height: 580 },
                     })
                     }
                 />

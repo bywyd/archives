@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1] - 2026-05-14
+
+### Added
+
+- Entity common intersection view component added to Archives UI
+
 ## [1.4.0] - 2026-04-23
 
 ### Added
