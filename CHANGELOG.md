@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.2] - 2026-05-26
+
+- Enhanced entity dossier button tooltips
+- Added entity dossier link copy button
+
 ## [1.4.1] - 2026-05-14
 
 ### Added

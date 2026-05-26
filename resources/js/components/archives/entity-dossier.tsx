@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronLeftIcon, ChevronRightIcon, Edit3, ExternalLinkIcon, FileSearch, FileText, GitBranch, GitBranchIcon, GitMerge, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
+import { AlertCircle, Check, ChevronLeftIcon, ChevronRightIcon, Copy, Edit3, ExternalLinkIcon, FileSearch, FileText, GitBranch, GitBranchIcon, GitMerge, History, Loader2, Lock, MapPin, Pin, PinOff, Scale, Shield, SlidersHorizontal, Sparkles, Unlock } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EntityAffiliationHistory } from '@/components/archives/entity-affiliation-history';
 import { EntityAliases } from '@/components/archives/entity-aliases';
@@ -27,6 +27,7 @@ import { useHistoryStore } from '@/stores/history-store';
 import { useWindowStore } from '@/stores/window-store';
 import type { ApiEntity } from '@/types/api';
 import { router } from '@inertiajs/react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Props = {
     universeId: number;
@@ -49,6 +50,16 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
     const { openWindow } = useWindowStore();
     const { can } = useAuth();
     const tabsRef = useRef<HTMLDivElement | null>(null)
+    const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
+
+    const copyEntityLink = () => {
+        const universeSlug = entity?.universe?.slug;
+        if (!universeSlug || !entity) return;
+        const url = `${window.location.origin}/archives/${universeSlug}?open=entity-dossier&universe=${encodeURIComponent(universeSlug)}&entity=${encodeURIComponent(entity.slug)}`;
+        navigator.clipboard.writeText(url)
+            .then(() => { setCopyState('copied'); setTimeout(() => setCopyState('idle'), 2000); })
+            .catch(() => { setCopyState('error'); setTimeout(() => setCopyState('idle'), 2000); });
+    };
 
     const scroll = (amount: number) => {
         if (tabsRef.current) {
@@ -228,9 +239,17 @@ export function EntityDossier({ universeId, entitySlug }: Props) {
                 )}
                 {/* open in wiki */}
                 <ActionButton
+                    icon={copyState === 'copied' ? <Check className="size-3" /> : copyState === 'error' ? <AlertCircle className="size-3" /> : <Copy className="size-3" />}
+                    title={copyState === 'copied' ? 'Link copied!' : copyState === 'error' ? 'Failed to copy' : 'Copy entity link'}
+                    active={copyState === 'copied'}
+                    variant={copyState === 'error' ? 'warning' : 'accent'}
+                    onClick={copyEntityLink}
+                />
+                <ActionButton
                     icon={<ExternalLinkIcon className="size-3" />}
                     title="View in Wiki"
-                    onClick={() => router.visit(`/w/${entity?.universe?.slug}/${entity.slug}`, { method: 'get', preserveState: true, preserveScroll: true })}
+                    // onClick={() => router.visit(`/w/${entity?.universe?.slug}/${entity.slug}`, { method: 'get', preserveState: true, preserveScroll: true })}
+                    onClick={() => window.open(`/w/${entity?.universe?.slug}/${entity.slug}`, '_blank')}
                 />
                 <ActionButton
                     icon={<GitBranch className="size-3" />}
@@ -683,9 +702,14 @@ function ActionButton({
   }
 
   return (
-    <button className={cn(baseClasses, variantClasses[variant])} title={title} onClick={onClick}>
-      {icon}
-    </button>
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <button className={cn(baseClasses, variantClasses[variant])} onClick={onClick}>
+            {icon}
+            </button>
+        </TooltipTrigger>
+        <TooltipContent className='z-1999' side="bottom" sideOffset={-5}>{title}</TooltipContent>
+    </Tooltip>
   )
 }
 
